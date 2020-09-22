@@ -26,7 +26,7 @@ class CustomMTModel(MarianMTModel):
 
             if 0 < cur_len <= len(ROMANCE_en.selected_tokens):
                 force_token_id = ROMANCE_en.selected_tokens[cur_len-1]
-                self._force_token_ids_generation(scores, token_ids=[force_token_id])
+                self._force_token_ids_generation(scores, force_token_id)
 
         return MarianMTModel.postprocess_next_token_scores(self, scores, input_ids, *a, **kw)
 
@@ -47,7 +47,7 @@ def incremental_generation(machine_translation, start, prefix_only):
     tokenized_prefix = tokenizer.convert_tokens_to_ids(en_ROMANCE_tokenizer.tokenize(start.strip()))
     prefix = torch.LongTensor(tokenized_prefix).to(device)
 
-    batch = tokenizer.prepare_translation_batch([machine_translation.replace("<pad> ", '')]).to(device)
+    batch = tokenizer.prepare_seq2seq_batch([machine_translation.replace("<pad> ", '')]).to(device)
     original_encoded = model.get_encoder()(**batch)
     decoder_start_token = model.config.decoder_start_token_id
     partial_decode = torch.LongTensor([decoder_start_token]).to(device).unsqueeze(0)
@@ -121,7 +121,7 @@ def translate(tokenizer, model, text, num_outputs):
     """Use beam search to get a reasonable translation of 'text'"""
     # Tokenize the source text
     tokenizer.current_spm = tokenizer.spm_source ### HACK!
-    batch = tokenizer.prepare_translation_batch([text]).to(model.device)
+    batch = tokenizer.prepare_seq2seq_batch([text]).to(model.device)
     
     # Run model
     num_beams = num_outputs
@@ -195,7 +195,7 @@ def generate_alternatives(english):
     #prepare input for translation
     ROMANCE_en.original_postprocess = True;
     english = ">>es<<" + sentence
-    engbatch = en_ROMANCE_tokenizer.prepare_translation_batch([english]).to(device)
+    engbatch = en_ROMANCE_tokenizer.prepare_seq2seq_batch([english]).to(device)
     eng_to_spanish = en_ROMANCE.generate(**engbatch).to(device)
     machine_translation = en_ROMANCE_tokenizer.decode(eng_to_spanish[0]).replace("<pad> ", '')
 
@@ -297,7 +297,7 @@ def generate_alternatives(english):
 def incremental_alternatives(sentence, prefix, recalculation):
     ROMANCE_en.original_postprocess = True
     english = ">>es<<" + sentence
-    engbatch = en_ROMANCE_tokenizer.prepare_translation_batch([english]).to(device)
+    engbatch = en_ROMANCE_tokenizer.prepare_seq2seq_batch([english]).to(device)
     eng_to_spanish = en_ROMANCE.generate(**engbatch).to(device)
     machine_translation = en_ROMANCE_tokenizer.decode(eng_to_spanish[0]).replace("<pad> ", '')
     if recalculation:
@@ -310,7 +310,7 @@ def completion(sentence, prefix):
     prefix = prefix.replace(" ", '', 1)
     ROMANCE_en.original_postprocess = True
     english = ">>es<<" + sentence
-    engbatch = en_ROMANCE_tokenizer.prepare_translation_batch([english]).to(device)
+    engbatch = en_ROMANCE_tokenizer.prepare_seq2seq_batch([english]).to(device)
     eng_to_spanish = en_ROMANCE.generate(**engbatch).to(device)
     machine_translation = en_ROMANCE_tokenizer.decode(eng_to_spanish[0]).replace("<pad> ", '')
 
