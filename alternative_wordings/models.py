@@ -51,7 +51,7 @@ def incremental_generation(machine_translation, start, prefix_only):
     original_encoded = model.get_encoder()(**batch)
     decoder_start_token = model.config.decoder_start_token_id
     partial_decode = torch.LongTensor([decoder_start_token]).to(device).unsqueeze(0)
-    past = (original_encoded, None)
+    past = None
 
     #machine translation for comparative purposes
     translation_tokens = model.generate(**batch)
@@ -65,7 +65,7 @@ def incremental_generation(machine_translation, start, prefix_only):
     #generate tokens incrementally 
     while True:
         model_inputs = model.prepare_inputs_for_generation(
-            partial_decode, past=past, attention_mask=batch['attention_mask'], use_cache=model.config.use_cache
+            partial_decode, past=past, encoder_outputs=original_encoded, attention_mask=batch['attention_mask'], use_cache=model.config.use_cache
         )
         with torch.no_grad():
             model_outputs = model(**model_inputs)
