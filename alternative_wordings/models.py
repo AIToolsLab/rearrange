@@ -1,9 +1,6 @@
 import torch
 from transformers import MarianMTModel, MarianTokenizer
-import string
-import pandas as pd
 import spacy
-from spacy import displacy
 import difflib
 from difflib import Differ, SequenceMatcher
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
