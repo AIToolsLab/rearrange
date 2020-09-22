@@ -1,9 +1,12 @@
 # alternative_wordings
 
 ## Project setup
-```
-npm install
-```
+
+* Install Anaconda.
+* Install [PyTorch](https://pytorch.org/get-started/locally/)
+* Install [spacy](https://spacy.io/usage)
+* `pip install -r requirements.txt`
+* `npm install`
 
 ### Compiles and hot-reloads for development
 ```
