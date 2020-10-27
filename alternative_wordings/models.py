@@ -3,13 +3,14 @@ from transformers import MarianMTModel, MarianTokenizer
 import spacy
 import difflib
 from difflib import Differ, SequenceMatcher
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-en_ROMANCE_model_name = 'Helsinki-NLP/opus-mt-en-ROMANCE'
+en_ROMANCE_model_name = "Helsinki-NLP/opus-mt-en-ROMANCE"
 en_ROMANCE_tokenizer = MarianTokenizer.from_pretrained(en_ROMANCE_model_name)
 en_ROMANCE = MarianMTModel.from_pretrained(en_ROMANCE_model_name).to(device)
 
-ROMANCE_en_model_name = 'Helsinki-NLP/opus-mt-ROMANCE-en'
+ROMANCE_en_model_name = "Helsinki-NLP/opus-mt-ROMANCE-en"
 ROMANCE_en_tokenizer = MarianTokenizer.from_pretrained(ROMANCE_en_model_name)
 ROMANCE_en = MarianMTModel.from_pretrained(ROMANCE_en_model_name).to(device)
 
@@ -23,10 +24,12 @@ class CustomMTModel(MarianMTModel):
                 cur_hypothesis = input_ids[hypothesis_idx]
 
             if 0 < cur_len <= len(ROMANCE_en.selected_tokens):
-                force_token_id = ROMANCE_en.selected_tokens[cur_len-1]
+                force_token_id = ROMANCE_en.selected_tokens[cur_len - 1]
                 self._force_token_ids_generation(scores, force_token_id)
 
-        return MarianMTModel.postprocess_next_token_scores(self, scores, input_ids, *a, **kw)
+        return MarianMTModel.postprocess_next_token_scores(
+            self, scores, input_ids, *a, **kw
+        )
 
 
 ROMANCE_en.__class__ = CustomMTModel
@@ -46,21 +49,21 @@ def incremental_generation(machine_translation, start, prefix_only):
     tokenizer = ROMANCE_en_tokenizer
     model = ROMANCE_en
     tokenized_prefix = tokenizer.convert_tokens_to_ids(
-        en_ROMANCE_tokenizer.tokenize(start.strip()))
+        en_ROMANCE_tokenizer.tokenize(start.strip())
+    )
     prefix = torch.LongTensor(tokenized_prefix).to(device)
 
     batch = tokenizer.prepare_seq2seq_batch(
-        [machine_translation.replace("<pad> ", '')]).to(device)
+        [machine_translation.replace("<pad> ", "")]
+    ).to(device)
     original_encoded = model.get_encoder()(**batch)
     decoder_start_token = model.config.decoder_start_token_id
-    partial_decode = torch.LongTensor(
-        [decoder_start_token]).to(device).unsqueeze(0)
+    partial_decode = torch.LongTensor([decoder_start_token]).to(device).unsqueeze(0)
     past = None
 
     # machine translation for comparative purposes
     translation_tokens = model.generate(**batch)
-    auto_translation = tokenizer.decode(
-        translation_tokens[0]).split("<pad>")[1]
+    auto_translation = tokenizer.decode(translation_tokens[0]).split("<pad>")[1]
 
     num_tokens_generated = 0
     prediction_list = []
@@ -70,8 +73,11 @@ def incremental_generation(machine_translation, start, prefix_only):
     # generate tokens incrementally
     while True:
         model_inputs = model.prepare_inputs_for_generation(
-            partial_decode, past=past, encoder_outputs=original_encoded, attention_mask=batch[
-                'attention_mask'], use_cache=model.config.use_cache
+            partial_decode,
+            past=past,
+            encoder_outputs=original_encoded,
+            attention_mask=batch["attention_mask"],
+            use_cache=model.config.use_cache,
         )
         with torch.no_grad():
             model_outputs = model(**model_inputs)
@@ -91,23 +97,24 @@ def incremental_generation(machine_translation, start, prefix_only):
                 break
 
         # calculate score
-        next_token_logprobs = next_token_logits - \
-            next_token_logits.logsumexp(1, True)
+        next_token_logprobs = next_token_logits - next_token_logits.logsumexp(1, True)
         token_score = next_token_logprobs[0][next_token_to_add].item()
         total += token_score
 
         # append top 10 predictions for each token to list
         decoded_predictions = []
         for tok in next_token_logits[0].topk(10).indices:
-            decoded_predictions.append(tokenizer.convert_ids_to_tokens(
-                tok.item()).replace('\u2581', '\u00a0'))
+            decoded_predictions.append(
+                tokenizer.convert_ids_to_tokens(tok.item()).replace("\u2581", "\u00a0")
+            )
 
         # list of lists of predictions
         prediction_list.append(decoded_predictions)
 
         # add new token to tokens so far
         partial_decode = torch.cat(
-            (partial_decode, next_token_to_add.unsqueeze(0).unsqueeze(0)), -1)
+            (partial_decode, next_token_to_add.unsqueeze(0).unsqueeze(0)), -1
+        )
         num_tokens_generated += 1
 
         # stop generating when max num tokens exceded
@@ -115,20 +122,23 @@ def incremental_generation(machine_translation, start, prefix_only):
             break
 
     # list of tokens used to display sentence
-    decoded_tokens = [sub.replace('\u2581', '\u00a0')
-                      for sub in tokenizer.convert_ids_to_tokens(partial_decode[0])]
+    decoded_tokens = [
+        sub.replace("\u2581", "\u00a0")
+        for sub in tokenizer.convert_ids_to_tokens(partial_decode[0])
+    ]
     decoded_tokens.remove("<pad>")
 
-    final = tokenizer.decode(partial_decode[0]).replace("<pad>", '')
-    score = round(total/(len(decoded_tokens)), 3)
+    final = tokenizer.decode(partial_decode[0]).replace("<pad>", "")
+    score = round(total / (len(decoded_tokens)), 3)
     print(final)
 
-    return {"final": final.lstrip(),
-            "expected": auto_translation,
-            "tokens": decoded_tokens,
-            "predictions": prediction_list,
-            "score": score
-            }
+    return {
+        "final": final.lstrip(),
+        "expected": auto_translation,
+        "tokens": decoded_tokens,
+        "predictions": prediction_list,
+        "score": score,
+    }
 
 
 def translate(tokenizer, model, text, num_outputs):
@@ -139,12 +149,23 @@ def translate(tokenizer, model, text, num_outputs):
 
     # Run model
     num_beams = num_outputs
-    translated = model.generate(**batch, num_beams=num_beams,
-                                num_return_sequences=num_outputs, max_length=40, no_repeat_ngram_size=5)
+    translated = model.generate(
+        **batch,
+        num_beams=num_beams,
+        num_return_sequences=num_outputs,
+        max_length=40,
+        no_repeat_ngram_size=5
+    )
 
     # Untokenize the output text.
     tokenizer.current_spm = tokenizer.spm_target
-    return [tokenizer.decode(t, skip_special_tokens=True, clean_up_tokenization_spaces=False) for t in translated]
+    return [
+        tokenizer.decode(
+            t, skip_special_tokens=True, clean_up_tokenization_spaces=False
+        )
+        for t in translated
+    ]
+
 
 # get prepositional phrases
 # adapted from https://stackoverflow.com/questions/39100652/python-chunking-others-than-noun-phrases-e-g-prepositional-using-spacy-etc
@@ -153,20 +174,19 @@ def translate(tokenizer, model, text, num_outputs):
 def get_pps(doc):
     pps = []
     for token in doc:
-        if token.pos_ == 'ADP':
-            pp = ' '.join([tok.orth_ for tok in token.subtree])
+        if token.pos_ == "ADP":
+            pp = " ".join([tok.orth_ for tok in token.subtree])
             pps.append(pp)
-        if token.dep_ == 'prep':
-            ROMANCE_en.off_limits.append(
-                ' '.join([tok.orth_ for tok in token.subtree]))
+        if token.dep_ == "prep":
+            ROMANCE_en.off_limits.append(" ".join([tok.orth_ for tok in token.subtree]))
     return pps
 
 
 def get_adv_clause(doc):
     clauses = []
     for token in doc:
-        if token.dep_ == 'advcl' or token.dep_ == 'npadvmod' or token.dep_ == 'advmod':
-            clause = ' '.join([tok.orth_ for tok in token.subtree])
+        if token.dep_ == "advcl" or token.dep_ == "npadvmod" or token.dep_ == "advmod":
+            clause = " ".join([tok.orth_ for tok in token.subtree])
             clauses.append(clause)
     return clauses
 
@@ -181,8 +201,9 @@ def generate_alternatives(english):
     ROMANCE_en.off_limits = []
     for pphrase in get_pps(doc):
         # messy way to capitalize the first word without lowercasing the others
-        capitalized = pphrase.split(' ')[0].capitalize(
-        ) + ' ' + ' '.join(pphrase.split(' ')[1:])
+        capitalized = (
+            pphrase.split(" ")[0].capitalize() + " " + " ".join(pphrase.split(" ")[1:])
+        )
         phrases.append(capitalized)
 
     # get noun chunks that aren't OPs
@@ -192,26 +213,35 @@ def generate_alternatives(english):
             if chunk.text in phr:
                 valid = False
         if valid:
-            capitalized = chunk.text.split(' ')[0].capitalize(
-            ) + ' ' + ' '.join(chunk.text.split(' ')[1:])
+            capitalized = (
+                chunk.text.split(" ")[0].capitalize()
+                + " "
+                + " ".join(chunk.text.split(" ")[1:])
+            )
             phrases.append(capitalized)
 
     # get adverbial modifiers and clauses
     for clause in get_adv_clause(doc):
-        capitalized = clause.split(' ')[0].capitalize(
-        ) + ' ' + ' '.join(clause.split(' ')[1:])
+        capitalized = (
+            clause.split(" ")[0].capitalize() + " " + " ".join(clause.split(" ")[1:])
+        )
         phrases.append(capitalized)
 
     # get clause beginnings
     wordlist = [t.orth_ for t in doc]
     for token in doc:
-        if token.dep_ == 'nsubj':
-            mystr = ' '.join([t.orth_ for t in token.lefts]) + \
-                token.text + ' ' + token.head.orth_
+        if token.dep_ == "nsubj":
+            mystr = (
+                " ".join([t.orth_ for t in token.lefts])
+                + token.text
+                + " "
+                + token.head.orth_
+            )
 
-            phraselist = wordlist[wordlist.index(
-                token.orth_):wordlist.index(token.head.orth_)+1]
-            phrases.append(' '.join(phraselist).capitalize())
+            phraselist = wordlist[
+                wordlist.index(token.orth_) : wordlist.index(token.head.orth_) + 1
+            ]
+            phrases.append(" ".join(phraselist).capitalize())
 
             wordlist.remove(token.orth_)
 
@@ -222,8 +252,9 @@ def generate_alternatives(english):
     english = ">>es<<" + sentence
     engbatch = en_ROMANCE_tokenizer.prepare_seq2seq_batch([english]).to(device)
     eng_to_spanish = en_ROMANCE.generate(**engbatch).to(device)
-    machine_translation = en_ROMANCE_tokenizer.decode(
-        eng_to_spanish[0]).replace("<pad> ", '')
+    machine_translation = en_ROMANCE_tokenizer.decode(eng_to_spanish[0]).replace(
+        "<pad> ", ""
+    )
 
     # generate alternatives starting with each selected phrase
     results = []
@@ -231,21 +262,23 @@ def generate_alternatives(english):
         resultset = []
         ROMANCE_en_tokenizer.current_spm = ROMANCE_en_tokenizer.spm_target
         tokens = ROMANCE_en_tokenizer.tokenize(selection)
-        ROMANCE_en.selected_tokens = ROMANCE_en_tokenizer.convert_tokens_to_ids(
-            tokens)
+        ROMANCE_en.selected_tokens = ROMANCE_en_tokenizer.convert_tokens_to_ids(tokens)
 
         ROMANCE_en.original_postprocess = False
-        top50 = translate(ROMANCE_en_tokenizer, ROMANCE_en,
-                          ">>en<<" + machine_translation, 50)
+        top50 = translate(
+            ROMANCE_en_tokenizer, ROMANCE_en, ">>en<<" + machine_translation, 50
+        )
         for element in top50[0:3]:
             res = incremental_generation(
-                machine_translation, element, prefix_only=False)
-            resultset.append((res['score'], res['final']))
+                machine_translation, element, prefix_only=False
+            )
+            resultset.append((res["score"], res["final"]))
         results.append(resultset)
 
     # count content words in original and each alternative to catch options that repeat or leave off important phrases
     important_words = [
-        token.text for token in doc if token.is_stop != True and token.is_punct != True]
+        token.text for token in doc if token.is_stop != True and token.is_punct != True
+    ]
     wordcount = []
     for word in important_words:
         wordcount.append((word, sentence.count(word)))
@@ -253,14 +286,17 @@ def generate_alternatives(english):
         idx = 0
         for score, sen in resultset:
             resdoc = nlp(sen)
-            important = [token.text for token in resdoc if token.is_stop !=
-                         True and token.is_punct != True]
+            important = [
+                token.text
+                for token in resdoc
+                if token.is_stop != True and token.is_punct != True
+            ]
             if len(important) - len(important_words) not in [-1, 0, 1]:
-                resultset[idx] = (score-10, sen)
+                resultset[idx] = (score - 10, sen)
             else:
                 for el in wordcount:
                     if sen.count(el[0]) > el[1]:
-                        resultset[idx] = (score-10, sen)
+                        resultset[idx] = (score - 10, sen)
             idx += 1
 
     # sort results with highest score first
@@ -272,7 +308,7 @@ def generate_alternatives(english):
     for pphrase in get_pps(top):
         highlight.append(pphrase)
     for chunk in doc.noun_chunks:
-        if chunk.text not in ' '.join(highlight):
+        if chunk.text not in " ".join(highlight):
             highlight.append(chunk.text)
     color_code_chunks = []
     for optionset in all_sorted:
@@ -294,11 +330,10 @@ def generate_alternatives(english):
                     if phrase.lower() in text.lower():
                         starting_idx = text.lower().find(phrase.lower())
                         final_sentence.append(
-                            (new_sentence.lower().split(phrase.lower())[0], 0))
-                        new_sentence = new_sentence.lower().split(
-                            phrase.lower())[-1]
-                        final_sentence.append(
-                            (phrase, highlight.index(phrase) + 1))
+                            (new_sentence.lower().split(phrase.lower())[0], 0)
+                        )
+                        new_sentence = new_sentence.lower().split(phrase.lower())[-1]
+                        final_sentence.append((phrase, highlight.index(phrase) + 1))
                     x += 1
                 final_sentence.append((new_sentence, 0))
                 color_code_subset.append(final_sentence)
@@ -307,15 +342,21 @@ def generate_alternatives(english):
     # messy way to capitalize sentences
     for group in color_code_chunks:
         for chunk in group:
-            if chunk[0][0] == '':
+            if chunk[0][0] == "":
                 first = chunk[1][0]
-                capitalized = first.split(' ')[0].capitalize(
-                ) + ' ' + ' '.join(first.split(' ')[1:])
+                capitalized = (
+                    first.split(" ")[0].capitalize()
+                    + " "
+                    + " ".join(first.split(" ")[1:])
+                )
                 chunk[1] = (capitalized, chunk[1][1])
             else:
                 first = chunk[0][0]
-                capitalized = first.split(' ')[0].capitalize(
-                ) + ' ' + ' '.join(first.split(' ')[1:])
+                capitalized = (
+                    first.split(" ")[0].capitalize()
+                    + " "
+                    + " ".join(first.split(" ")[1:])
+                )
                 chunk[0] = (capitalized, chunk[0][1])
 
     alternatives = []
@@ -326,9 +367,7 @@ def generate_alternatives(english):
             altgroup.append(result)
         alternatives.append(altgroup)
 
-    return {"alternatives": alternatives,
-            "colorCoding": color_code_chunks
-            }
+    return {"alternatives": alternatives, "colorCoding": color_code_chunks}
 
 
 def incremental_alternatives(sentence, prefix, recalculation):
@@ -336,32 +375,34 @@ def incremental_alternatives(sentence, prefix, recalculation):
     english = ">>es<<" + sentence
     engbatch = en_ROMANCE_tokenizer.prepare_seq2seq_batch([english]).to(device)
     eng_to_spanish = en_ROMANCE.generate(**engbatch).to(device)
-    machine_translation = en_ROMANCE_tokenizer.decode(
-        eng_to_spanish[0]).replace("<pad> ", '')
+    machine_translation = en_ROMANCE_tokenizer.decode(eng_to_spanish[0]).replace(
+        "<pad> ", ""
+    )
     if recalculation:
         sentence = prefix
     print(machine_translation)
     print(sentence)
-    return(incremental_generation(machine_translation, sentence, False))
+    return incremental_generation(machine_translation, sentence, False)
 
 
 def completion(sentence, prefix):
-    prefix = prefix.replace(" ", '', 1)
+    prefix = prefix.replace(" ", "", 1)
     ROMANCE_en.original_postprocess = True
     english = ">>es<<" + sentence
     engbatch = en_ROMANCE_tokenizer.prepare_seq2seq_batch([english]).to(device)
     eng_to_spanish = en_ROMANCE.generate(**engbatch).to(device)
-    machine_translation = en_ROMANCE_tokenizer.decode(
-        eng_to_spanish[0]).replace("<pad> ", '')
+    machine_translation = en_ROMANCE_tokenizer.decode(eng_to_spanish[0]).replace(
+        "<pad> ", ""
+    )
 
     ROMANCE_en_tokenizer.current_spm = ROMANCE_en_tokenizer.spm_target
     tokens = ROMANCE_en_tokenizer.tokenize(prefix)
-    ROMANCE_en.selected_tokens = ROMANCE_en_tokenizer.convert_tokens_to_ids(
-        tokens)
+    ROMANCE_en.selected_tokens = ROMANCE_en_tokenizer.convert_tokens_to_ids(tokens)
 
     ROMANCE_en.original_postprocess = False
-    top5 = translate(ROMANCE_en_tokenizer, ROMANCE_en,
-                     ">>en<<" + machine_translation, 5)
+    top5 = translate(
+        ROMANCE_en_tokenizer, ROMANCE_en, ">>en<<" + machine_translation, 5
+    )
 
     differences = []
     for option in top5:
@@ -372,7 +413,7 @@ def completion(sentence, prefix):
         print(b)
         s = SequenceMatcher(None, a, b)
         for tag, i1, i2, j1, j2 in s.get_opcodes():
-            if tag != 'equal':
+            if tag != "equal":
                 x = j1 - len(prefix.split()) + 1
                 for string in b[j1:j2]:
                     print(string)
@@ -383,8 +424,6 @@ def completion(sentence, prefix):
 
     endings = []
     for s in top5:
-        endings.append(s.replace(prefix, ''))
+        endings.append(s.replace(prefix, ""))
 
-    return {'endings': endings,
-            'differences': differences
-            }
+    return {"endings": endings, "differences": differences}
