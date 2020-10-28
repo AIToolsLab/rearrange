@@ -427,3 +427,28 @@ def completion(sentence, prefix):
         endings.append(s.replace(prefix, ""))
 
     return {"endings": endings, "differences": differences}
+
+
+if __name__ == "__main__":
+    # test for generate_alternatives
+    # genAltReturn = generate_alternatives(
+    #     "The church currently maintains a program of ministry, outreach, and cultural events."
+    # )
+    # genAltReturn = generate_alternatives("I ate the apple whole.")
+    # print("Here")
+    # print(genAltReturn)
+
+    # genincrReturn = incremental_alternatives(
+    #     "The church currently maintains a program of ministry, outreach, and cultural events.",
+    #     "Currently",
+    #     False,
+    # )
+    # print("Here")
+    # print(genincrReturn)
+
+    completionReturn = completion(
+        "The church currently maintains a program of ministry, outreach, and cultural events.",
+        "Currently church currently maintains a program of ministry, outreach, and cultural events.",
+    )
+
+    print(completionReturn)
