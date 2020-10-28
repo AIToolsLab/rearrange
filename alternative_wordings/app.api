@@ -28,14 +28,14 @@ paths:
                     description:
                       Alternatives is a list of lists of sentences. Each outer list has a different forced starting prefix with inner lists
                       having different endings.
-                    type: list<list>
+                    type: list<list<strings>>
                     example:
                       [['The church currently maintains a program of ministry, outreach and cultural events.', 'The church currently maintains a program of ministry, outreach, and cultural events.'],
                       ['Currently, the church maintains a program of ministry, outreach and cultural events.', ...]
                   colorCoding:
                     description:
                       ColorCoding contains a list for each alternative sentence separating the sentence out into its constituent parts.
-                    type: list<list<list>>
+                    type: //unsure what to describe this as
                     example:
                       [[[('', 0), ('The church', 2), (' currently maintains ', 0), ('a program', 3), (' of ministry, outreach and cultural events.', 0)],
                       [('', 0), ('The church', 2), (' currently maintains ', 0), ('a program', 3), (' of ministry, outreach, and cultural events.', 0)]],
@@ -90,14 +90,14 @@ paths:
                     description:
                       A list of tokens in the final sequence
                       (They are returned with /xa0, non-breaking space, which is then converted to a space in app.vue)
-                    type: list
+                    type: list<string>
                     example:
                       ['\xa0The', '\xa0church', '\xa0currently', '\xa0maintains', '\xa0a', '\xa0program', '\xa0of',
                       '\xa0ministry', ',', '\xa0outreach', ',', '\xa0and', '\xa0cultural', '\xa0events', '.']
                   predictions:
                     description:
                       A list of the top 10 alternative words for each token in final.
-                    type: list<list>
+                    type: list<list<string>>
                     example:
                       [['\xa0The', '\xa0Currently', '\xa0Today', '\xa0At', '\xa0Present', '\xa0Nowadays', '\xa0It', '\xa0A', '\xa0Now', '\xa0There'],
                       ['\xa0church', '\xa0Church', '\xa0churches', '\xa0present', '\xa0Catholic', '\xa0ministry', '\xa0parish', '\xa0religious', '\xa0school', '\xa0current'],...]
@@ -115,7 +115,7 @@ paths:
     get:
       summary:
         Completion
-        Called in app.vue at recalculate() when a word in the sentence is changed to generate new alternatives.
+        Called in app.vue at recalculate() when a word in the sentence is changed from probability list to generate new alternatives.
       query parameters:
         type: object
           properties:
@@ -136,10 +136,15 @@ paths:
                 properties:
                   endings:
                     description:
-                    type:
+                      The new generated endings with the prefix taken off.
+                    type: list<string>
                     example:
+                    [" The church is now a member of the church's ministry, outreach and cultural events program.",
+                    " The church is now a member of the church's ministry, outreach and cultural events."]
                   differences:
                     description:
-                    type:
+                      A list for each sentence in endings which shows the differences in words between them.
+                    type:list<list
                     example:
+                      [[-10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], [-10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]]
 
