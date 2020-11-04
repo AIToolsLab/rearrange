@@ -141,7 +141,8 @@ def incremental_generation(machine_translation, start, prefix_only):
     }
 
 
-# summary: translate feeds an originial sentence through the model in order to gain alternatives.
+
+# summary: translate feeds an original sentence through the model in order to gain alternatives.
 #          It employs num_return_sequences in the model generation in order to recieve multiple
 #          different translations of the same text
 # parameters: tokenizer, tokenizer in use
@@ -465,7 +466,6 @@ def completion(sentence, prefix):
         endings.append(s.replace(prefix, ""))
 
     return {"endings": endings, "differences": differences}
-
 
 if __name__ == "__main__":
     # test for function outputs
