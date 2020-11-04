@@ -14,7 +14,9 @@ ROMANCE_en_model_name = "Helsinki-NLP/opus-mt-ROMANCE-en"
 ROMANCE_en_tokenizer = MarianTokenizer.from_pretrained(ROMANCE_en_model_name)
 ROMANCE_en = MarianMTModel.from_pretrained(ROMANCE_en_model_name).to(device)
 
-
+# A customMTModel is created from MarianMTModel with the postprocess_next_token_scores
+# switched out for a custom definition which allows forcing prefix tokens.
+# Tokens to force must be specified by adding them to selected_tokens
 class CustomMTModel(MarianMTModel):
     def postprocess_next_token_scores(self, scores, input_ids, *a, **kw):
         if not ROMANCE_en.original_postprocess:
@@ -34,6 +36,7 @@ class CustomMTModel(MarianMTModel):
 
 ROMANCE_en.__class__ = CustomMTModel
 
+# summary: Incremental_generation is used to generate alternative probable words for each word in a sentence
 # parameters: machine_translation, the spanish translation
 #             start, the forced beginning of the english.
 #             prefix_only, if true no new tokens will be generated after param 'start'
@@ -42,9 +45,6 @@ ROMANCE_en.__class__ = CustomMTModel
 #         list of tokens in the final sequence
 #         list of top 10 predictions for each token
 #         score for average predictability
-#######################################################################################
-
-
 def incremental_generation(machine_translation, start, prefix_only):
     tokenizer = ROMANCE_en_tokenizer
     model = ROMANCE_en
@@ -141,6 +141,16 @@ def incremental_generation(machine_translation, start, prefix_only):
     }
 
 
+
+# summary: translate feeds an original sentence through the model in order to gain alternatives.
+#          It employs num_return_sequences in the model generation in order to recieve multiple
+#          different translations of the same text
+# parameters: tokenizer, tokenizer in use
+#             model, machine translation model in use
+#             text, text to be translated
+#             num_outputs, number of different sentences to be generated using model
+# returns: list of untokenized sentences
+#######################################################################################
 def translate(tokenizer, model, text, num_outputs):
     """Use beam search to get a reasonable translation of 'text'"""
     # Tokenize the source text
@@ -169,8 +179,6 @@ def translate(tokenizer, model, text, num_outputs):
 
 # get prepositional phrases
 # adapted from https://stackoverflow.com/questions/39100652/python-chunking-others-than-noun-phrases-e-g-prepositional-using-spacy-etc
-
-
 def get_pps(doc):
     pps = []
     for token in doc:
@@ -191,6 +199,14 @@ def get_adv_clause(doc):
     return clauses
 
 
+# summary: generate_alternatives generates alternative sentences for a given english sentence.
+# parameters: english, the original sentence to get alternatives of
+# returns: dict including:
+#             alternatives, a list of lists of sentences with each outer list having a
+#               different forced starting prefix and inner lists having different endings
+#             color_coding, a list for each alternative sentence separating the sentence
+#               into its sentence parts
+#######################################################################################
 def generate_alternatives(english):
     nlp = spacy.load("en_core_web_sm")
     sentence = english
@@ -249,6 +265,7 @@ def generate_alternatives(english):
 
     # prepare input for translation
     ROMANCE_en.original_postprocess = True
+    # Specifies target language to translate
     english = ">>es<<" + sentence
     engbatch = en_ROMANCE_tokenizer.prepare_seq2seq_batch([english]).to(device)
     eng_to_spanish = en_ROMANCE.generate(**engbatch).to(device)
@@ -370,6 +387,18 @@ def generate_alternatives(english):
     return {"alternatives": alternatives, "colorCoding": color_code_chunks}
 
 
+# summary: incremental_alternatives is mainly used to generate the translation of the original sentence
+#          before feeding it to incremental_generation()
+# parameters: sentence, the sentence to generate alternatives of
+#             prefix, never used unless recalculation is true
+#             recalculation, if true the prefix is used to generate alternatives
+# returns: dict including:
+#               the final text
+#               the expected result (machine translation to english of the spanish input)
+#               list of tokens in the final sequence
+#               list of top 10 predictions for each token
+#               score for average predictability
+#######################################################################################
 def incremental_alternatives(sentence, prefix, recalculation):
     ROMANCE_en.original_postprocess = True
     english = ">>es<<" + sentence
@@ -385,6 +414,14 @@ def incremental_alternatives(sentence, prefix, recalculation):
     return incremental_generation(machine_translation, sentence, False)
 
 
+# summary: completion
+# parameters: sentence, the sentence to generate alternatives of
+#             prefix, A prefix to force in generating new sentence
+# returns: dict including:
+#               endings, list possible alternative sentence endings
+#               differences, a list for each alternative sentence specifying the differences
+#                   between it and the original
+#######################################################################################
 def completion(sentence, prefix):
     prefix = prefix.replace(" ", "", 1)
     ROMANCE_en.original_postprocess = True
@@ -397,6 +434,7 @@ def completion(sentence, prefix):
 
     ROMANCE_en_tokenizer.current_spm = ROMANCE_en_tokenizer.spm_target
     tokens = ROMANCE_en_tokenizer.tokenize(prefix)
+    # add prefix to selected_tokens in order to force it in generation
     ROMANCE_en.selected_tokens = ROMANCE_en_tokenizer.convert_tokens_to_ids(tokens)
 
     ROMANCE_en.original_postprocess = False
@@ -404,6 +442,7 @@ def completion(sentence, prefix):
         ROMANCE_en_tokenizer, ROMANCE_en, ">>en<<" + machine_translation, 5
     )
 
+    # caculate difference in words for each alternative
     differences = []
     for option in top5:
         diffs = []
@@ -427,3 +466,26 @@ def completion(sentence, prefix):
         endings.append(s.replace(prefix, ""))
 
     return {"endings": endings, "differences": differences}
+
+if __name__ == "__main__":
+    # test for function outputs
+    genAltReturn = generate_alternatives(
+        "The church currently maintains a program of ministry, outreach, and cultural events."
+    )
+    print("generate_alternatives()")
+    print(genAltReturn)
+
+    genincrReturn = incremental_alternatives(
+        "The church currently maintains a program of ministry, outreach, and cultural events.",
+        "",
+        False,
+    )
+    print("incremental_alternatives()")
+    print(genincrReturn)
+
+    completionReturn = completion(
+        "The church currently maintains a program of ministry, outreach, and cultural events.",
+        "The church presently",
+    )
+    print("completion()")
+    print(completionReturn)
