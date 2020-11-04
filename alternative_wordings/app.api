@@ -17,6 +17,7 @@ paths:
               description:
                 English sentence to get alternatives of
               type: string
+              example: "The church currently maintains a program of ministry, outreach and cultural events."
 
       responses:
         '200':
@@ -28,14 +29,15 @@ paths:
                     description:
                       Alternatives is a list of lists of sentences. Each outer list has a different forced starting prefix with inner lists
                       having different endings.
-                    type: list<list<strings>>
+                    type: list<list[string]>
                     example:
                       [['The church currently maintains a program of ministry, outreach and cultural events.', 'The church currently maintains a program of ministry, outreach, and cultural events.'],
                       ['Currently, the church maintains a program of ministry, outreach and cultural events.', ...]
                   colorCoding:
                     description:
                       ColorCoding contains a list for each alternative sentence separating the sentence out into its constituent parts.
-                    type: //unsure what to describe this as
+                      Each tuple contains a string and an integer which specifys which component of the sentence the phrase is.
+                    type: list<list<list<(string,integer)>>
                     example:
                       [[[('', 0), ('The church', 2), (' currently maintains ', 0), ('a program', 3), (' of ministry, outreach and cultural events.', 0)],
                       [('', 0), ('The church', 2), (' currently maintains ', 0), ('a program', 3), (' of ministry, outreach, and cultural events.', 0)]],
@@ -58,13 +60,15 @@ paths:
               description:
                 English sentence
               type: string
+              example: "The church currently maintains a program of ministry, outreach and cultural events."
             prefix:
               description:
+                //unused in current code base
                 String to force as prefix to sentence
               type:string
             recalculation:
               description:
-                //unsure
+                //unused in current code base
                 If recalculation is true, the prefix is used to get return values rather than the english sentence.
               type: boolean
 
@@ -114,8 +118,10 @@ paths:
   /api/completion:
     get:
       summary:
-        Completion
+        Completion generates alternative word endings after a specified prefix. Differences in word between alternatives and original
+        sentence are also calculated in order to bold differences in display.
         Called in app.vue at recalculate() when a word in the sentence is changed from probability list to generate new alternatives.
+
       query parameters:
         type: object
           properties:
@@ -123,10 +129,12 @@ paths:
               description:
                 An english sentence to complete with prefix
               type: string
+              example: "The church currently maintains a program of ministry, outreach and cultural events."
             prefix:
               description:
                 A prefix to force in generating new sentence
               type: string
+              example: "The church presently"
 
       responses:
         '200':
@@ -144,7 +152,7 @@ paths:
                   differences:
                     description:
                       A list for each sentence in endings which shows the differences in words between them.
-                    type:list<list
+                    type:list<list[integers]>
                     example:
                       [[-10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], [-10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]]
 
