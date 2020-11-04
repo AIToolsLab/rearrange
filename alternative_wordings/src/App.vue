@@ -89,7 +89,7 @@
         </li>
       </ul>
     </div>
-
+    <!--Alternative sentences displayed once a word is changed -->
     <div v-else class="alterations">
       <p style="font-size: 20px">{{ withChangedWord }}</p>
       <div class="grid-container">
@@ -103,6 +103,7 @@
               style="font-size: 20px; color: #666666"
               class="plain"
             >
+              <!--Bold words which are different between alternative and original-->
               <span v-for="(word, wordidx) in completion">
                 <span
                   v-if="isDifferent(word, optionidx, wordidx)"
@@ -174,6 +175,8 @@ export default {
       return this.isShowing[idx];
     },
     isDifferent(string, optionidx, wordidx) {
+      // Used to bold different words in alternative sentences
+
       console.log(string);
       console.log(optionidx);
       console.log(wordidx);
@@ -185,6 +188,9 @@ export default {
       }
     },
     async getAlts(inputText) {
+      // Gets alternatives for inputText along with chunks for color coding
+      // Used with continue button
+
       var url = new URL("/api/result", window.location);
       var params = {
         english: inputText,
@@ -196,6 +202,10 @@ export default {
     },
 
     async incremental(inputText, prefix, recalculation) {
+      // Fills this.incrementalData with inputText, expected machine translation.
+      // list of tokens in final sequence, list of top 10 alternative words for each token,
+      // and a score for average predictability.
+
       var url = new URL("/api/incremental", window.location);
       var params = {
         english: inputText,
@@ -206,13 +216,18 @@ export default {
       const res = await fetch(url);
       const input = await res.json();
       this.incrementalData = input;
+      // reset selectedIdx in case this was called through selecting alternative word
       this.selectedIdx = -1;
     },
 
     async recalculate(changedword, index) {
+      // Get alternative endings once word is chosen from word probability list
+
       this.$set(this.incrementalData.tokens, index, changedword);
+      // get sentence up to and including changed word
       var thelist = this.incrementalData.tokens.slice(0, index + 1);
       var newinputstr = thelist.join("").replace(/\u00a0/g, " ");
+      // set as prefix
       this.prefix = newinputstr;
       // this.incremental(this.inputText, newinputstr, true)
       // this.withChangedWord = this.incrementalData.tokens.join('').replace(/\u00a0/g, ' ');
