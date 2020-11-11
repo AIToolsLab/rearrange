@@ -199,7 +199,7 @@ def get_adv_clause(doc):
     return clauses
 
 
-# summary: generate_alternatives generates alternative sentences for a given english sentence.
+# summary: getphrase_candidate() alternative sentences for a given english sentence.
 # parameters: english, the original sentence to get alternatives of
 # returns: dict including:
 #             alternatives, a list of lists of sentences with each outer list having a
@@ -207,7 +207,7 @@ def get_adv_clause(doc):
 #             color_coding, a list for each alternative sentence separating the sentence
 #               into its sentence parts
 #######################################################################################
-def generate_alternatives(english):
+def getphrase_candidate(english):
     nlp = spacy.load("en_core_web_sm")
     sentence = english
     doc = nlp(sentence)
@@ -263,6 +263,16 @@ def generate_alternatives(english):
 
     print(phrases)
 
+# summary:  def process_phrase() it process the alternative phrase from the give phrase
+# parameters: english, the original sentence to get alternatives of
+# returns: dict including:
+#             alternatives, a list of lists of sentences with each outer list having a
+#               different forced starting prefix and inner lists having different endings
+#             color_coding, a list for each alternative sentence separating the sentence
+#               into its sentence parts
+#######################################################################################
+
+def process_phrase():
     # prepare input for translation
     ROMANCE_en.original_postprocess = True
     # Specifies target language to translate
@@ -469,11 +479,20 @@ def completion(sentence, prefix):
 
 if __name__ == "__main__":
     # test for function outputs
-    genAltReturn = generate_alternatives(
+    genAltReturn = getphrase_candidate(
         "The church currently maintains a program of ministry, outreach, and cultural events."
     )
-    print("generate_alternatives()")
+    print("getphrase_candidate()")
     print(genAltReturn)
+
+
+    process_result = process_phrase(
+        "The church currently maintains a program of ministry, outreach, and cultural events."
+    )
+    print("getphrase_candidate()")
+    print(process_phrase())
+
+
 
     genincrReturn = incremental_alternatives(
         "The church currently maintains a program of ministry, outreach, and cultural events.",
