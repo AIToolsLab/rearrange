@@ -1,13 +1,18 @@
 <template>
   <div id="app">
-    <!--Header, input text area, and button section-->
+
+    <!--Header, input text area, and button section
+    textare where the user input his or her text to get the alternative
+    the text are is alway empty until the user input the text in it
+    -->
+
     <div class="form-group">
       <h2 style="color: black">Exploring alternative wordings</h2>
       <textarea
         id="userenglish"
         name="text"
         v-model="inputText"
-        rows="4"
+        rows="10"
         cols="50"
         required
       >
@@ -24,7 +29,15 @@
         Continue
       </button>
     </div>
-    <!--Area where you can switch out words in the sentence with most likely alternatives-->
+
+
+
+
+
+    <!--Area where you can switch out words in the sentence with most likely alternatives
+    when user click the word he/she want to replace it is hightlishted in the yellow
+    -->
+
     <div class="focus-sentence">
       <span class="tooltip" v-for="(word, ind) in incrementalData.tokens">
         <!--If you click on a word to replace it make the replacement yellow-->
@@ -49,7 +62,14 @@
       </span>
     </div>
 
-    <!--Alternative sentences for original sentence with parts highlighted-->
+
+
+
+
+
+    <!--Alternative sentences for original sentence with parts highlighted
+    
+    -->
     <div v-if="showResults" class="results">
       <br />
       <ul>
@@ -89,6 +109,10 @@
         </li>
       </ul>
     </div>
+
+
+
+
     <!--Alternative sentences displayed once a word is changed -->
     <div v-else class="alterations">
       <p style="font-size: 20px">{{ withChangedWord }}</p>
@@ -121,6 +145,8 @@
 </template>
 
 <script>
+
+ 
 export default {
   data() {
     return {
@@ -337,6 +363,8 @@ button.plain:focus {
   outline: none;
 }
 
+
+
 .continue {
   box-shadow: inset 0px 1px 0px 0px white;
   background: linear-gradient(to bottom, white 5%, #f6f6f6 100%);
@@ -350,21 +378,30 @@ button.plain:focus {
   padding: 6px 24px;
   text-shadow: 0px 1px 0px white;
 }
+
+
 .continue:hover {
   background: linear-gradient(to bottom, #f6f6f6 5%, white 100%);
   background-color: #f6f6f6;
   cursor: pointer;
 }
+
+
 .grid-container {
   display: grid;
   grid-template-columns: auto auto auto;
   padding: 10px;
 }
+
+
+
 .grid-item {
   font-size: 20px;
   text-align: left;
   padding: 0px;
 }
+
+
 
 .results .tooltip {
   vertical-align: top;
