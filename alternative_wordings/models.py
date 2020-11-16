@@ -199,15 +199,13 @@ def get_adv_clause(doc):
     return clauses
 
 
-# summary: generate_alternatives generates alternative sentences for a given english sentence.
+# summary: get_input_sentence  sentences for a given english sentence.
 # parameters: english, the original sentence to get alternatives of
 # returns: dict including:
 #             alternatives, a list of lists of sentences with each outer list having a
-#               different forced starting prefix and inner lists having different endings
-#             color_coding, a list for each alternative sentence separating the sentence
-#               into its sentence parts
 #######################################################################################
-def generate_alternatives(english):
+
+def get_input_sentence(english):
     nlp = spacy.load("en_core_web_sm")
     sentence = english
     doc = nlp(sentence)
@@ -263,6 +261,14 @@ def generate_alternatives(english):
 
     print(phrases)
 
+
+# summary: process_sentence: function translate english to spanish.
+#               different forced starting prefix and inner lists having different endings
+#             color_coding, a list for each alternative sentence separating the sentence
+#               into its sentence parts
+#######################################################################################
+
+def process_input_Sentence():
     # prepare input for translation
     ROMANCE_en.original_postprocess = True
     # Specifies target language to translate
@@ -469,11 +475,19 @@ def completion(sentence, prefix):
 
 if __name__ == "__main__":
     # test for function outputs
-    genAltReturn = generate_alternatives(
+    genAltReturn = get_input_sentence(
         "The church currently maintains a program of ministry, outreach, and cultural events."
     )
-    print("generate_alternatives()")
+    print("get_input_sentence()")
     print(genAltReturn)
+
+
+    genAltReturn =  process_input_sentence(
+        "The church currently maintains a program of ministry, outreach, and cultural events."
+    )
+    print("process_input_sentence()")
+    print(genAltReturn)
+
 
     genincrReturn = incremental_alternatives(
         "The church currently maintains a program of ministry, outreach, and cultural events.",
@@ -482,6 +496,7 @@ if __name__ == "__main__":
     )
     print("incremental_alternatives()")
     print(genincrReturn)
+
 
     completionReturn = completion(
         "The church currently maintains a program of ministry, outreach, and cultural events.",
