@@ -4,7 +4,10 @@ import spacy
 import difflib
 from difflib import Differ, SequenceMatcher
 
+LANGUAGE = ">>fr<<"
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+nlp = spacy.load("en_core_web_sm")
 
 en_ROMANCE_model_name = "Helsinki-NLP/opus-mt-en-ROMANCE"
 en_ROMANCE_tokenizer = MarianTokenizer.from_pretrained(en_ROMANCE_model_name)
@@ -200,104 +203,11 @@ def get_adv_clause(doc):
 
 
 # summary: get_input_sentence  sentences for a given english sentence.
-# parameters: english, the original sentence to get alternatives of
-# returns: dict including:
-#             alternatives, a list of lists of sentences with each outer list having a
-#######################################################################################
-
-def get_input_sentence(english):
-    nlp = spacy.load("en_core_web_sm")
-    sentence = english
-    doc = nlp(sentence)
-    phrases = []
-
-    # get prepositional phrases and blacklist OPs
-    ROMANCE_en.off_limits = []
-    for pphrase in get_pps(doc):
-        # messy way to capitalize the first word without lowercasing the others
-        capitalized = (
-            pphrase.split(" ")[0].capitalize() + " " + " ".join(pphrase.split(" ")[1:])
-        )
-        phrases.append(capitalized)
-
-    # get noun chunks that aren't OPs
-    for chunk in doc.noun_chunks:
-        valid = True
-        for phr in ROMANCE_en.off_limits:
-            if chunk.text in phr:
-                valid = False
-        if valid:
-            capitalized = (
-                chunk.text.split(" ")[0].capitalize()
-                + " "
-                + " ".join(chunk.text.split(" ")[1:])
-            )
-            phrases.append(capitalized)
-
-    # get adverbial modifiers and clauses
-    for clause in get_adv_clause(doc):
-        capitalized = (
-            clause.split(" ")[0].capitalize() + " " + " ".join(clause.split(" ")[1:])
-        )
-        phrases.append(capitalized)
-
-    # get clause beginnings
-    wordlist = [t.orth_ for t in doc]
-    for token in doc:
-        if token.dep_ == "nsubj":
-            mystr = (
-                " ".join([t.orth_ for t in token.lefts])
-                + token.text
-                + " "
-                + token.head.orth_
-            )
-
-            phraselist = wordlist[
-                wordlist.index(token.orth_) : wordlist.index(token.head.orth_) + 1
-            ]
-            phrases.append(" ".join(phraselist).capitalize())
-
-            wordlist.remove(token.orth_)
-
-    print(phrases)
+def capitalize_first_word(phrase):
+    return phrase.split(" ")[0].capitalize() + " " + " ".join(phrase.split(" ")[1:])
 
 
-# summary: process_sentence: function translate english to spanish.
-#               different forced starting prefix and inner lists having different endings
-#             color_coding, a list for each alternative sentence separating the sentence
-#               into its sentence parts
-#######################################################################################
-
-def process_input_Sentence():
-    # prepare input for translation
-    ROMANCE_en.original_postprocess = True
-    # Specifies target language to translate
-    english = ">>es<<" + sentence
-    engbatch = en_ROMANCE_tokenizer.prepare_seq2seq_batch([english]).to(device)
-    eng_to_spanish = en_ROMANCE.generate(**engbatch).to(device)
-    machine_translation = en_ROMANCE_tokenizer.decode(eng_to_spanish[0]).replace(
-        "<pad> ", ""
-    )
-
-    # generate alternatives starting with each selected phrase
-    results = []
-    for selection in set(phrases):
-        resultset = []
-        ROMANCE_en_tokenizer.current_spm = ROMANCE_en_tokenizer.spm_target
-        tokens = ROMANCE_en_tokenizer.tokenize(selection)
-        ROMANCE_en.selected_tokens = ROMANCE_en_tokenizer.convert_tokens_to_ids(tokens)
-
-        ROMANCE_en.original_postprocess = False
-        top50 = translate(
-            ROMANCE_en_tokenizer, ROMANCE_en, ">>en<<" + machine_translation, 50
-        )
-        for element in top50[0:3]:
-            res = incremental_generation(
-                machine_translation, element, prefix_only=False
-            )
-            resultset.append((res["score"], res["final"]))
-        results.append(resultset)
-
+def get_score(token, doc, sentence, results):
     # count content words in original and each alternative to catch options that repeat or leave off important phrases
     important_words = [
         token.text for token in doc if token.is_stop != True and token.is_punct != True
@@ -321,10 +231,10 @@ def process_input_Sentence():
                     if sen.count(el[0]) > el[1]:
                         resultset[idx] = (score - 10, sen)
             idx += 1
+    return score
 
-    # sort results with highest score first
-    all_sorted = sorted(results, key=lambda x: x[0])[::-1]
 
+def get_color_chunks(all_sorted, doc, score):
     # select prepositional and noun phrases to be highlighted
     top = nlp(all_sorted[0][0][1])
     highlight = []
@@ -367,20 +277,108 @@ def process_input_Sentence():
         for chunk in group:
             if chunk[0][0] == "":
                 first = chunk[1][0]
-                capitalized = (
-                    first.split(" ")[0].capitalize()
-                    + " "
-                    + " ".join(first.split(" ")[1:])
-                )
+                capitalized = capitalize_first_word(first)
                 chunk[1] = (capitalized, chunk[1][1])
             else:
                 first = chunk[0][0]
-                capitalized = (
-                    first.split(" ")[0].capitalize()
-                    + " "
-                    + " ".join(first.split(" ")[1:])
-                )
+                capitalized = capitalize_first_word(first)
                 chunk[0] = (capitalized, chunk[0][1])
+    return color_code_chunks
+
+
+# summary: generate_alternatives generates alternative sentences for a given english sentence.
+# parameters: english, the original sentence to get alternatives of
+# returns: dict including:
+#             alternatives, a list of lists of sentences with each outer list having a
+#######################################################################################
+def generate_alternatives(english):
+    sentence = english
+    doc = nlp(sentence)
+    phrases = []
+
+    # get prepositional phrases and blacklist OPs
+    ROMANCE_en.off_limits = []
+    for pphrase in get_pps(doc):
+        print("get_pps" + pphrase)
+        # messy way to capitalize the first word without lowercasing the others
+        phrases.append(capitalize_first_word(pphrase))
+
+    # get noun chunks that aren't OPs
+    for chunk in doc.noun_chunks:
+        valid = True
+        for phr in ROMANCE_en.off_limits:
+            if chunk.text in phr:
+                valid = False
+        if valid:
+            phrases.append(capitalize_first_word(chunk.text))
+
+    # get adverbial modifiers and clauses
+    for clause in get_adv_clause(doc):
+        phrases.append(capitalize_first_word(clause))
+
+    # get clause beginnings
+    wordlist = [t.orth_ for t in doc]
+    for token in doc:
+        if token.dep_ == "nsubj":
+            mystr = (
+                " ".join([t.orth_ for t in token.lefts])
+                + token.text
+                + " "
+                + token.head.orth_
+            )
+
+            phraselist = wordlist[
+                wordlist.index(token.orth_) : wordlist.index(token.head.orth_) + 1
+            ]
+            phrases.append(" ".join(phraselist).capitalize())
+
+            wordlist.remove(token.orth_)
+
+    print(phrases)
+
+
+# summary: process_sentence: function translate english to spanish.
+#               different forced starting prefix and inner lists having different endings
+#             color_coding, a list for each alternative sentence separating the sentence
+#               into its sentence parts
+#######################################################################################
+
+def process_input_Sentence():
+    # prepare input for translation
+    ROMANCE_en.original_postprocess = True
+    # Specifies target language to translate
+    english = LANGUAGE + sentence
+    engbatch = en_ROMANCE_tokenizer.prepare_seq2seq_batch([english]).to(device)
+    eng_to_spanish = en_ROMANCE.generate(**engbatch).to(device)
+    machine_translation = en_ROMANCE_tokenizer.decode(eng_to_spanish[0]).replace(
+        "<pad> ", ""
+    )
+
+    # generate alternatives starting with each selected phrase
+    results = []
+    for selection in set(phrases):
+        resultset = []
+        ROMANCE_en_tokenizer.current_spm = ROMANCE_en_tokenizer.spm_target
+        tokens = ROMANCE_en_tokenizer.tokenize(selection)
+        ROMANCE_en.selected_tokens = ROMANCE_en_tokenizer.convert_tokens_to_ids(tokens)
+
+        ROMANCE_en.original_postprocess = False
+        top50 = translate(
+            ROMANCE_en_tokenizer, ROMANCE_en, ">>en<<" + machine_translation, 50
+        )
+        for element in top50[0:3]:
+            res = incremental_generation(
+                machine_translation, element, prefix_only=False
+            )
+            resultset.append((res["score"], res["final"]))
+        results.append(resultset)
+
+    score = get_score(token, doc, sentence, results)
+
+    # sort results with highest score first
+    all_sorted = sorted(results, key=lambda x: x[0])[::-1]
+
+    color_code_chunks = get_color_chunks(all_sorted, doc, score)
 
     alternatives = []
     scores = []
@@ -407,7 +405,7 @@ def process_input_Sentence():
 #######################################################################################
 def incremental_alternatives(sentence, prefix, recalculation):
     ROMANCE_en.original_postprocess = True
-    english = ">>es<<" + sentence
+    english = LANGUAGE + sentence
     engbatch = en_ROMANCE_tokenizer.prepare_seq2seq_batch([english]).to(device)
     eng_to_spanish = en_ROMANCE.generate(**engbatch).to(device)
     machine_translation = en_ROMANCE_tokenizer.decode(eng_to_spanish[0]).replace(
@@ -418,6 +416,32 @@ def incremental_alternatives(sentence, prefix, recalculation):
     print(machine_translation)
     print(sentence)
     return incremental_generation(machine_translation, sentence, False)
+
+
+# summary: calculate_differences compares each alternative to an original sentence
+#          a numerical representation of the differences is returned for each sentence
+# parameters: alternatives, a list of alternative sentences to compare
+#             original_sentence, sentence to compare against alternatives
+# returns: list of list of differences (as integers) between each alternative and the original sentence
+#######################################################################################
+def calculate_differences(alternatives, original_sentence, prefix):
+    differences = []
+    for option in alternatives:
+        diffs = []
+        a = original_sentence.split()
+        print(a)
+        b = option.split()
+        print(b)
+        s = SequenceMatcher(None, a, b)
+        for tag, i1, i2, j1, j2 in s.get_opcodes():
+            if tag != "equal":
+                x = j1 - len(prefix.split()) + 1
+                for string in b[j1:j2]:
+                    print(string)
+                    diffs.append(x)
+                    x += 1
+        differences.append(diffs)
+    return differences
 
 
 # summary: completion
@@ -431,7 +455,7 @@ def incremental_alternatives(sentence, prefix, recalculation):
 def completion(sentence, prefix):
     prefix = prefix.replace(" ", "", 1)
     ROMANCE_en.original_postprocess = True
-    english = ">>es<<" + sentence
+    english = LANGUAGE + sentence
     engbatch = en_ROMANCE_tokenizer.prepare_seq2seq_batch([english]).to(device)
     eng_to_spanish = en_ROMANCE.generate(**engbatch).to(device)
     machine_translation = en_ROMANCE_tokenizer.decode(eng_to_spanish[0]).replace(
@@ -449,22 +473,7 @@ def completion(sentence, prefix):
     )
 
     # caculate difference in words for each alternative
-    differences = []
-    for option in top5:
-        diffs = []
-        a = sentence.split()
-        print(a)
-        b = option.split()
-        print(b)
-        s = SequenceMatcher(None, a, b)
-        for tag, i1, i2, j1, j2 in s.get_opcodes():
-            if tag != "equal":
-                x = j1 - len(prefix.split()) + 1
-                for string in b[j1:j2]:
-                    print(string)
-                    diffs.append(x)
-                    x += 1
-        differences.append(diffs)
+    differences = calculate_differences(top5, sentence, prefix)
     print("prefix length: ", len(prefix.split()))
 
     endings = []
