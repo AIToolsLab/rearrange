@@ -17,6 +17,9 @@ ROMANCE_en_model_name = "Helsinki-NLP/opus-mt-ROMANCE-en"
 ROMANCE_en_tokenizer = MarianTokenizer.from_pretrained(ROMANCE_en_model_name)
 ROMANCE_en = MarianMTModel.from_pretrained(ROMANCE_en_model_name).to(device)
 
+# Dictionary to convert pronouns for passive to active voice
+obj_to_subj_pronouns = {'her':'she', 'him':'he', 'whom':'who', 'me': 'I', 'us':'we', 'them':'they'}
+
 # A customMTModel is created from MarianMTModel with the postprocess_next_token_scores
 # switched out for a custom definition which allows forcing prefix tokens.
 # Tokens to force must be specified by adding them to selected_tokens
@@ -301,18 +304,35 @@ def generate_alternatives(english):
     # get prepositional phrases and blacklist OPs
     ROMANCE_en.off_limits = []
     for pphrase in get_pps(doc):
-        print("get_pps" + pphrase)
         # messy way to capitalize the first word without lowercasing the others
         phrases.append(capitalize_first_word(pphrase))
 
+    #get subject after agent
+    pronoun_to_convert = ""
+    for sent in doc.sents:
+        for token in sent:
+            #Checks if there is a pronoun after agent for passive sentences
+            if token.pos_=="PRON" and sent[(token.i - sent.start)-1].dep_=="agent":
+                pronoun_to_convert = token.text
+
     # get noun chunks that aren't OPs
     for chunk in doc.noun_chunks:
+        text = chunk.text
         valid = True
         for phr in ROMANCE_en.off_limits:
-            if chunk.text in phr:
+            if text in phr:
                 valid = False
         if valid:
-            phrases.append(capitalize_first_word(chunk.text))
+            # Check if pronoun needs to be converted.
+            if text == pronoun_to_convert:
+                # Switch to correct pronoun
+                text = obj_to_subj_pronouns.get(pronoun_to_convert)
+            capitalized = (
+                text.split(" ")[0].capitalize()
+                + " "
+                + " ".join(chunk.text.split(" ")[1:])
+            )
+        phrases.append(capitalized)
 
     # get adverbial modifiers and clauses
     for clause in get_adv_clause(doc):
