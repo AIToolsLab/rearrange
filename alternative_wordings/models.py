@@ -499,7 +499,7 @@ def completion(sentence, prefix):
 if __name__ == "__main__":
     # test for function output
     genAltReturn = generate_alternatives(
-        "The castle was built by her after she stole from them."
+        "The church currently maintains a program of ministry, outreach, and cultural events."
     )
     print("generate_alternatives()")
     print(genAltReturn)
