@@ -18,7 +18,7 @@ ROMANCE_en_tokenizer = MarianTokenizer.from_pretrained(ROMANCE_en_model_name)
 ROMANCE_en = MarianMTModel.from_pretrained(ROMANCE_en_model_name).to(device)
 
 # Dictionary to convert pronouns for passive to active voice
-pronouns = {'her':'she', 'him':'he', 'whom':'who', 'me': 'I', 'us':'we', 'them':'they'}
+obj_to_subj_pronouns = {'her':'she', 'him':'he', 'whom':'who', 'me': 'I', 'us':'we', 'them':'they'}
 
 # A customMTModel is created from MarianMTModel with the postprocess_next_token_scores
 # switched out for a custom definition which allows forcing prefix tokens.
@@ -317,24 +317,21 @@ def generate_alternatives(english):
 
     # get noun chunks that aren't OPs
     for chunk in doc.noun_chunks:
+        text = chunk.text
         valid = True
         for phr in ROMANCE_en.off_limits:
-            if chunk.text in phr:
+            if text in phr:
                 valid = False
         if valid:
             # Check if pronoun needs to be converted.
-            if chunk.text == pronoun_to_convert:
-                capitalized = (
-                pronouns.get(pronoun_to_convert).split(" ")[0].capitalize()
+            if text == pronoun_to_convert:
+                # Switch to correct pronoun
+                text = obj_to_subj_pronouns.get(pronoun_to_convert)
+            capitalized = (
+                text.split(" ")[0].capitalize()
                 + " "
                 + " ".join(chunk.text.split(" ")[1:])
             )
-            else:
-                capitalized = (
-                    chunk.text.split(" ")[0].capitalize()
-                    + " "
-                    + " ".join(chunk.text.split(" ")[1:])
-                )
         phrases.append(capitalized)
 
     # get adverbial modifiers and clauses
@@ -502,7 +499,7 @@ def completion(sentence, prefix):
 if __name__ == "__main__":
     # test for function output
     genAltReturn = generate_alternatives(
-        "The church currently maintains a program of ministry, outreach, and cultural events."
+        "The castle was built by her after she stole from them."
     )
     print("generate_alternatives()")
     print(genAltReturn)
