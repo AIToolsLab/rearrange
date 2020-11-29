@@ -327,12 +327,7 @@ def generate_alternatives(english):
             if text == pronoun_to_convert:
                 # Switch to correct pronoun
                 text = obj_to_subj_pronouns.get(pronoun_to_convert)
-            capitalized = (
-                text.split(" ")[0].capitalize()
-                + " "
-                + " ".join(chunk.text.split(" ")[1:])
-            )
-        phrases.append(capitalized)
+            phrases.append(capitalize_first_word(text))
 
     # get adverbial modifiers and clauses
     for clause in get_adv_clause(doc):
