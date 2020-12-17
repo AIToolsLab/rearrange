@@ -27,8 +27,8 @@ We wish to expand the current existing tool created by April Volzer during her s
 
 [Current Code Base](https://github.com/CalvinData/seniorproj2020)
 
-[Status Update Presentation Slides](https://github.com/CalvinData/seniorproj2020/blob/gh-pages/SeniorProjectProposalUpdated.pdf)
+[Status Update Presentation Slides](https://github.com/CalvinData/seniorproj2020/blob/gh-pages/statusUpdate.pdf)
 
-[Updated Report](https://github.com/CalvinData/seniorproj2020/blob/gh-pages/statusUpdate.pdf)
+[Updated Project Proposal](https://github.com/CalvinData/seniorproj2020/blob/gh-pages/SeniorProjectProposalUpdated.pdf)
 
 [Calvin University Department of Computer Science website](https://computing.calvin.edu)
