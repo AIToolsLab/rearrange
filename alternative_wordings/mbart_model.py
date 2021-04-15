@@ -8,10 +8,10 @@ class mbartAlt:
         self.bart = TransformerModel.from_pretrained(
             "mbart50.ft.nn",
             checkpoint_file="model.pt",
-            data_name_or_path="/content/mbart50.ft.nn",
+            data_name_or_path="mbart50.ft.nn",
             bpe="sentencepiece",
-            sentencepiece_model="/content/mbart50.ft.nn/sentence.bpe.model",
-            lang_dict="/content/mbart50.ft.nn/ML50_langs.txt",
+            sentencepiece_model="mbart50.ft.nn/sentence.bpe.model",
+            lang_dict="mbart50.ft.nn/ML50_langs.txt",
             target_lang=lang,
             source_lang="en_XX",
             encoder_langtok="src",
