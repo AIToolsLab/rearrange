@@ -61,7 +61,10 @@ class mbartAlt:
         resultset = []
         for i in range(3):
             resultset.append(
-                (returned[i]["score"], self.bart.decode(returned[i]["tokens"]))
+                (
+                    returned[i]["score"],
+                    self.clean_lang_tok(self.bart.decode(returned[i]["tokens"])),
+                )
             )
         # restore original translation direction
         self.bart.task.args.target_lang = orig_tgt
@@ -88,5 +91,5 @@ if __name__ == "__main__":
                 "To feed her hungry family",
                 "She shot",
             ],
-        )[0]
+        )
     )

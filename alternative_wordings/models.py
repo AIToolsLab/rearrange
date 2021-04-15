@@ -3,6 +3,7 @@ from transformers import MarianMTModel, MarianTokenizer
 import spacy
 import difflib
 from difflib import Differ, SequenceMatcher
+from mbart_model import mbartAlt
 
 LANGUAGE = ">>fr<<"
 
@@ -16,6 +17,9 @@ en_ROMANCE = MarianMTModel.from_pretrained(en_ROMANCE_model_name).to(device)
 ROMANCE_en_model_name = "Helsinki-NLP/opus-mt-ROMANCE-en"
 ROMANCE_en_tokenizer = MarianTokenizer.from_pretrained(ROMANCE_en_model_name)
 ROMANCE_en = MarianMTModel.from_pretrained(ROMANCE_en_model_name).to(device)
+
+mbart = mbartAlt("fr_XX")
+use_mbart = True
 
 # Dictionary to convert pronouns for passive to active voice
 obj_to_subj_pronouns = {
@@ -362,34 +366,40 @@ def generate_alternatives(english):
 
     print(phrases)
 
-    # prepare input for translation
-    ROMANCE_en.original_postprocess = True
-    # Specifies target language to translate
-    english = LANGUAGE + sentence
-    engbatch = en_ROMANCE_tokenizer.prepare_seq2seq_batch([english]).to(device)
-    eng_to_spanish = en_ROMANCE.generate(**engbatch).to(device)
-    machine_translation = en_ROMANCE_tokenizer.decode(eng_to_spanish[0]).replace(
-        "<pad> ", ""
-    )
-
-    # generate alternatives starting with each selected phrase
     results = []
-    for selection in set(phrases):
-        resultset = []
-        ROMANCE_en_tokenizer.current_spm = ROMANCE_en_tokenizer.spm_target
-        tokens = ROMANCE_en_tokenizer.tokenize(selection)
-        ROMANCE_en.selected_tokens = ROMANCE_en_tokenizer.convert_tokens_to_ids(tokens)
 
-        ROMANCE_en.original_postprocess = False
-        top50 = translate(
-            ROMANCE_en_tokenizer, ROMANCE_en, ">>en<<" + machine_translation, 50
+    if use_mbart:
+        results = mbart.get_prefix_alts(sentence, phrases)
+    else:
+        # prepare input for translation
+        ROMANCE_en.original_postprocess = True
+        # Specifies target language to translate
+        english = LANGUAGE + sentence
+        engbatch = en_ROMANCE_tokenizer.prepare_seq2seq_batch([english]).to(device)
+        eng_to_spanish = en_ROMANCE.generate(**engbatch).to(device)
+        machine_translation = en_ROMANCE_tokenizer.decode(eng_to_spanish[0]).replace(
+            "<pad> ", ""
         )
-        for element in top50[0:3]:
-            res = incremental_generation(
-                machine_translation, element, prefix_only=False
+
+        # generate alternatives starting with each selected phrase
+        for selection in set(phrases):
+            resultset = []
+            ROMANCE_en_tokenizer.current_spm = ROMANCE_en_tokenizer.spm_target
+            tokens = ROMANCE_en_tokenizer.tokenize(selection)
+            ROMANCE_en.selected_tokens = ROMANCE_en_tokenizer.convert_tokens_to_ids(
+                tokens
             )
-            resultset.append((res["score"], res["final"]))
-        results.append(resultset)
+
+            ROMANCE_en.original_postprocess = False
+            top50 = translate(
+                ROMANCE_en_tokenizer, ROMANCE_en, ">>en<<" + machine_translation, 50
+            )
+            for element in top50[0:3]:
+                res = incremental_generation(
+                    machine_translation, element, prefix_only=False
+                )
+                resultset.append((res["score"], res["final"]))
+            results.append(resultset)
 
     score = get_score(token, doc, sentence, results)
 
