@@ -1,3 +1,4 @@
+import torch
 from fairseq.token_generation_constraints import pack_constraints
 from fairseq.models.transformer import TransformerModel
 import re
