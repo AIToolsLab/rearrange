@@ -18,6 +18,7 @@ class mbartAlt:
             encoder_langtok="src",
         )
         self.bart.eval()
+        # self.bart.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
         self.lang = lang
 
     def constraint2tensor(self, constraints: [str]):
@@ -44,8 +45,6 @@ class mbartAlt:
 
     def round_trip(self, sentence: str, constraints: [str]):
         constraints_tensor = self.constraint2tensor([constraints])
-        away = self.bart.translate(sentence)
-        away = self.clean_lang_tok(away)
         # switch translation direction
         orig_tgt = self.bart.task.args.target_lang
         orig_src = self.bart.task.args.source_lang
@@ -53,14 +52,15 @@ class mbartAlt:
         self.bart.task.args.source_lang = orig_tgt
 
         returned = self.sample(
-            away,
+            sentence,
             beam=5,
             verbose=True,
             constraints="ordered",
             inference_step_args={"constraints": constraints_tensor},
         )
+        print(constraints)
         resultset = []
-        for i in range(3):
+        for i in range(len(returned)):
             resultset.append(
                 (
                     returned[i]["score"],
@@ -75,11 +75,14 @@ class mbartAlt:
         return resultset
 
     def get_prefix_alts(self, sentence, prefixes: [str]):
-        return [self.round_trip(sentence, [prefix]) for prefix in prefixes]
+        away = self.bart.translate(sentence)
+        away = self.clean_lang_tok(away)
+        return [self.round_trip(away, [prefix]) for prefix in prefixes]
 
 
 if __name__ == "__main__":
     mbart = mbartAlt("de_DE")
+    print(torch.cuda.is_available())
     print(
         mbart.get_prefix_alts(
             "She shot the cow during a time of scarcity to feed her hungry family.",

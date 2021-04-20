@@ -8,7 +8,7 @@ from marian_model import marianAlt
 nlp = spacy.load("en_core_web_sm")
 mbart = mbartAlt("fr_XX")
 marian = marianAlt(">>fr<<")
-use_mbart = True
+use_mbart = False
 
 # Dictionary to convert pronouns for passive to active voice
 obj_to_subj_pronouns = {
