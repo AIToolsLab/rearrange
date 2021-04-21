@@ -57,6 +57,8 @@ class mbartAlt:
             verbose=True,
             constraints="ordered",
             inference_step_args={"constraints": constraints_tensor},
+            max_len_a=1,
+            max_len_b=5,
         )
         print(constraints)
         resultset = []

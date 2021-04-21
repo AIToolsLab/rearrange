@@ -2,6 +2,20 @@ import torch
 from transformers import MarianMTModel, MarianTokenizer
 
 
+class CustomMTModel(MarianMTModel):
+    def adjust_logits_during_generation(self, logits, cur_len, max_length):
+        if not self.original_postprocess:
+            if 0 < cur_len <= len(self.selected_tokens):
+                force_token_id = self.selected_tokens[cur_len - 1]
+                logits[
+                    :, [x for x in range(logits.shape[1]) if x != force_token_id]
+                ] = -float("inf")
+
+        return MarianMTModel.adjust_logits_during_generation(
+            self, logits, cur_len, max_length
+        )
+
+
 class marianAlt:
     def __init__(self, lang: str):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -20,25 +34,9 @@ class marianAlt:
         self.ROMANCE_en = MarianMTModel.from_pretrained(ROMANCE_en_model_name).to(
             self.device
         )
-        self.lang = lang
-
-        class CustomMTModel(MarianMTModel):
-            def postprocess_next_token_scores(self, scores, input_ids, *a, **kw):
-                if not self.original_postprocess:
-                    batch_size, vocab_size = scores.shape
-                    cur_len = input_ids.shape[1]
-                    for hypothesis_idx in range(batch_size):
-                        cur_hypothesis = input_ids[hypothesis_idx]
-
-                    if 0 < cur_len <= len(self.selected_tokens):
-                        force_token_id = self.selected_tokens[cur_len - 1]
-                        self._force_token_ids_generation(scores, force_token_id)
-
-                return MarianMTModel.postprocess_next_token_scores(
-                    self, scores, input_ids, *a, **kw
-                )
-
         self.ROMANCE_en.__class__ = CustomMTModel
+
+        self.lang = lang
 
     def translate(self, text, num_outputs):
         """Use beam search to get a reasonable translation of 'text'"""
@@ -85,7 +83,9 @@ class marianAlt:
         )
         prefix = torch.LongTensor(tokenized_prefix).to(self.device)
 
-        batch = tokenizer(machine_translation.replace("<pad> ", ""), return_tensors="pt", padding=True).to(self.device)
+        batch = tokenizer(
+            machine_translation.replace("<pad> ", ""), return_tensors="pt", padding=True
+        ).to(self.device)
         original_encoded = model.get_encoder()(**batch)
         decoder_start_token = model.config.decoder_start_token_id
         partial_decode = (
@@ -166,7 +166,6 @@ class marianAlt:
 
         final = tokenizer.decode(partial_decode[0]).replace("<pad>", "")
         score = round(total / (len(decoded_tokens)), 3)
-        print(final)
 
         return {
             "final": final.lstrip(),
@@ -191,14 +190,16 @@ class marianAlt:
     def incremental_alternatives(self, sentence, prefix, recalculation):
         self.ROMANCE_en.original_postprocess = True
         english = self.lang + sentence
-        eng_to_spanish = self.en_ROMANCE.generate(**self.en_ROMANCE_tokenizer(english, return_tensors="pt", padding=True).to(self.device)).to(self.device)
+        eng_to_spanish = self.en_ROMANCE.generate(
+            **self.en_ROMANCE_tokenizer(english, return_tensors="pt", padding=True).to(
+                self.device
+            )
+        ).to(self.device)
         machine_translation = self.en_ROMANCE_tokenizer.decode(
             eng_to_spanish[0]
         ).replace("<pad> ", "")
         if recalculation:
             sentence = prefix
-        print(machine_translation)
-        print(sentence)
         return self.incremental_generation(machine_translation, sentence, False)
 
     def get_prefix_alts(self, sentence, phrases: [str]):
@@ -206,11 +207,15 @@ class marianAlt:
         self.ROMANCE_en.original_postprocess = True
         # Specifies target language to translate
         english = self.lang + sentence
-        eng_to_spanish = self.en_ROMANCE.generate(**self.en_ROMANCE_tokenizer(english, return_tensors="pt", padding=True).to(self.device)).to(self.device)
+        eng_to_spanish = self.en_ROMANCE.generate(
+            **self.en_ROMANCE_tokenizer(english, return_tensors="pt", padding=True).to(
+                self.device
+            )
+        ).to(self.device)
         machine_translation = self.en_ROMANCE_tokenizer.decode(
             eng_to_spanish[0]
         ).replace("<pad> ", "")
-        
+
         results = []
         # generate alternatives starting with each selected phrase
         for selection in set(phrases):
@@ -222,6 +227,7 @@ class marianAlt:
             )
 
             self.ROMANCE_en.original_postprocess = False
+            print(self.ROMANCE_en.__class__)
             top50 = self.translate(">>en<<" + machine_translation, 50)
             for element in top50[0:3]:
                 res = self.incremental_generation(
@@ -242,7 +248,11 @@ class marianAlt:
     def completion(self, sentence, prefix):
         self.ROMANCE_en.original_postprocess = True
         english = self.lang + sentence
-        eng_to_spanish = self.en_ROMANCE.generate(**self.en_ROMANCE_tokenizer(english, return_tensors="pt", padding=True).to(self.device)).to(self.device)
+        eng_to_spanish = self.en_ROMANCE.generate(
+            **self.en_ROMANCE_tokenizer(english, return_tensors="pt", padding=True).to(
+                self.device
+            )
+        ).to(self.device)
         machine_translation = self.en_ROMANCE_tokenizer.decode(
             eng_to_spanish[0]
         ).replace("<pad> ", "")
@@ -260,4 +270,18 @@ class marianAlt:
 
 
 if __name__ == "__main__":
-    pass
+    marian = marianAlt(">>es<<")
+    print(
+        marian.get_prefix_alts(
+            "She shot the cow during a time of scarcity to feed her hungry family.",
+            [
+                "During a time of scarcity",
+                "Of scarcity",
+                "She ",
+                "The cow",
+                "Her hungry family",
+                "To feed her hungry family",
+                "She shot",
+            ],
+        )
+    )

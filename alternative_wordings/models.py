@@ -7,7 +7,7 @@ from marian_model import marianAlt
 
 nlp = spacy.load("en_core_web_sm")
 mbart = mbartAlt("fr_XX")
-marian = marianAlt(">>fr<<")
+marian = marianAlt(">>es<<")
 use_mbart = False
 
 # Dictionary to convert pronouns for passive to active voice
@@ -65,7 +65,8 @@ def get_score(doc, sentence, results):
                 for token in resdoc
                 if token.is_stop != True and token.is_punct != True
             ]
-            if len(important) - len(important_words) not in [-1, 0, 1]:
+            # allow +2 for mbart
+            if len(important) - len(important_words) not in [-1, 0, 1, 2]:
                 resultset[idx] = (score - 10, sen)
             else:
                 for el in wordcount:
@@ -209,6 +210,10 @@ def get_phrases(doc):
     return phrases
 
 
+def incremental_alternatives(sentence, prefix, recalculation):
+    return marian.incremental_alternatives(sentence, prefix, recalculation)
+
+
 # summary: generate_alternatives generates alternative sentences for a given english sentence.
 # parameters: english, the original sentence to get alternatives of
 # returns: dict including:
@@ -221,8 +226,6 @@ def generate_alternatives(english):
     sentence = english
     doc = nlp(sentence)
     phrases = get_phrases(doc)
-
-    print(phrases)
 
     results = []
 
@@ -245,6 +248,8 @@ def generate_alternatives(english):
         for score, result in subset:
             altgroup.append(result)
         alternatives.append(altgroup)
+
+    print(alternatives)
 
     return {"alternatives": alternatives, "colorCoding": color_code_chunks}
 
