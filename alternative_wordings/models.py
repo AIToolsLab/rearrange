@@ -6,9 +6,9 @@ from marian_model import marianAlt
 
 
 nlp = spacy.load("en_core_web_sm")
-mbart = mbartAlt("fr_XX")
+mbart = mbartAlt("de_DE")
 marian = marianAlt(">>es<<")
-use_mbart = False
+use_mbart = True
 
 # Dictionary to convert pronouns for passive to active voice
 obj_to_subj_pronouns = {
@@ -211,7 +211,19 @@ def get_phrases(doc):
 
 
 def incremental_alternatives(sentence, prefix, recalculation):
-    return marian.incremental_alternatives(sentence, prefix, recalculation)
+    doc = nlp(sentence)
+    highlight = []
+    for chunk in doc.noun_chunks:
+        highlight.append(chunk.text)
+    new_sentence = sentence
+    final_sentence = []
+    for phrase in highlight:
+        final_sentence.append((new_sentence.lower().split(phrase.lower())[0], 0))
+        new_sentence = new_sentence.lower().split(phrase.lower())[-1]
+        final_sentence.append((phrase, highlight.index(phrase) + 1))
+    final_sentence.append((new_sentence, 0))
+    return {"chunks": final_sentence}
+    # return marian.incremental_alternatives(sentence, prefix, recalculation)
 
 
 # summary: generate_alternatives generates alternative sentences for a given english sentence.
@@ -274,6 +286,11 @@ def completion(sentence, prefix):
         endings.append(s.replace(prefix, ""))
 
     return {"endings": endings, "differences": differences}
+
+
+def generate_constraints(sentence, constraints):
+    print(sentence)
+    return mbart.round_trip(sentence, constraints)[0][1]
 
 
 if __name__ == "__main__":
