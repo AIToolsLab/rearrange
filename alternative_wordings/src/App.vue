@@ -37,6 +37,29 @@
         </span>
       </draggable>
     </div>
+    <div class="focus-sentence">
+      <span class="tooltip" v-for="(words, ind) in word_alts">
+        <!--If you click on a word to replace it make the replacement yellow-->
+        <span v-if="ind == selectedIdx" style="background-color: yellow"
+          >{{ words[0] }}
+        </span>
+        <span v-else>{{ words[0] + " " }}</span>
+        <!--Drop down selector for alternative words from prediction-->
+        <div id="ind" class="tooltiptext">
+          <span v-for="i in word_alts[ind]">
+            <button
+              class="plain"
+              @click="
+                recalculate(i, ind);
+                selectedIdx = ind;
+              "
+            >
+              {{ i }}</button
+            ><br />
+          </span>
+        </div>
+      </span>
+    </div>
   </div>
 </template>
 
@@ -69,6 +92,7 @@ export default {
       differences: [],
       selectedIdx: -1,
       current_text: "",
+      word_alts: [],
     };
   },
 
@@ -207,7 +231,10 @@ export default {
       };
       url.searchParams.append("q", JSON.stringify(params));
       var res = await fetch(url);
-      var input = await res.json();
+      var output = await res.json();
+      var input = output.result;
+      this.word_alts = output.word_alternatives;
+      console.log(this.word_alts);
       console.log(input);
       url = new URL("/api/incremental", window.location);
       params = {
@@ -255,6 +282,9 @@ ul {
   background-color: #eeeeee;
   font-size: 25px;
   padding: 5%;
+}
+span {
+  white-space: pre-wrap;
 }
 .results {
   text-align: left;

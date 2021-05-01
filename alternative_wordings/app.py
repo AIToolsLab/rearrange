@@ -61,4 +61,4 @@ def constraints():
 
 
 if __name__ == "__main__":
-    app.run(port=5009)
+    app.run(debug=True, use_reloader=False, port=5009)

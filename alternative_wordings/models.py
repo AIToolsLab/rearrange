@@ -3,11 +3,13 @@ import difflib
 from difflib import Differ, SequenceMatcher
 from mbart_model import mbartAlt
 from marian_model import marianAlt
+import torch
 
-
+torch.cuda.empty_cache()
 nlp = spacy.load("en_core_web_sm")
-mbart = mbartAlt("de_DE")
-marian = marianAlt(">>es<<")
+mbart = mbartAlt("nl_XX")
+print("here")
+# marian = marianAlt(">>es<<")
 use_mbart = True
 
 # Dictionary to convert pronouns for passive to active voice
@@ -38,8 +40,15 @@ def get_pps(doc):
 def get_adv_clause(doc):
     clauses = []
     for token in doc:
-        if token.dep_ == "advcl" or token.dep_ == "npadvmod" or token.dep_ == "advmod":
+        if (
+            token.dep_ == "advcl"
+            or token.dep_ == "npadvmod"
+            or token.dep_ == "advmod"
+            or token.pos_ == "SCONJ"
+        ):
             clause = " ".join([tok.orth_ for tok in token.subtree])
+            # fix apostrophy s issues
+            clause = clause.replace(" '", "'")
             clauses.append(clause)
     return clauses
 
@@ -290,28 +299,278 @@ def completion(sentence, prefix):
 
 def generate_constraints(sentence, constraints):
     print(sentence)
-    return mbart.round_trip(sentence, constraints)[0][1]
+    new_constraints = []
+    for idx, constraint in enumerate(constraints):
+        # too simple filtering of "the"
+        constraint = constraint.replace("the ", "")
+        constraint = constraint.replace("The ", "")
+        if idx != 0:
+            # constraint = constraint[0].lower() + constraint[1:]
+            pass
+        new_constraints.append(constraint)
+    # doc = nlp(sentence)
+    # possible_prefixes = get_phrases(doc)
+    # usable_prefix = ""
+    # for prefix in possible_prefixes:
+    #     if constraints[0] in prefix:
+    #         usable_prefix = prefix
+    #     else:
+    #         if new_constraints[0] in prefix:
+    #             usable_prefix = prefix
+    #     print(usable_prefix)
+    # print(usable_prefix)
+    away = mbart.bart.translate(sentence)
+    away = mbart.clean_lang_tok(away)
+    resultset, word_alternatives = mbart.round_trip(away, new_constraints)
+    word_alternatives = [
+        ["The ", "the ", "It ", "In ", "This ", "[en_XX]", "and ", "A ", "El ", "in "],
+        [
+            "US ",
+            "American ",
+            "USA ",
+            "United ",
+            "U ",
+            "America ",
+            "State ",
+            "States ",
+            "USD ",
+            "US ",
+        ],
+        [
+            "government ",
+            "Government ",
+            "state ",
+            "administration ",
+            "public ",
+            "Administration ",
+            "national ",
+            "State ",
+            "federal ",
+            "law ",
+        ],
+        [
+            "created ",
+            "established ",
+            "create ",
+            "made ",
+            "opened ",
+            "ed ",
+            "developed ",
+            "found ",
+            "built ",
+            "produced ",
+        ],
+        [
+            "Yellow",
+            "yellow",
+            "[en_XX] ",
+            "the ",
+            "red ",
+            "ed ",
+            "by",
+            "this ",
+            "green ",
+            "1982 ",
+        ],
+        [
+            "stone ",
+            "Stone ",
+            "ston ",
+            "tone ",
+            "ton ",
+            "set ",
+            "sta",
+            "ste",
+            "water ",
+            "sto",
+        ],
+        [
+            "National ",
+            "national ",
+            "National ",
+            "nation ",
+            "Nation ",
+            "State ",
+            "nationale ",
+            "International ",
+            "national ",
+            "nacional ",
+        ],
+        [
+            "Park ",
+            "park ",
+            "park ",
+            "Park ",
+            "Parc ",
+            "Reserve ",
+            "Bank ",
+            "Garden ",
+            "Parque ",
+            "PAR ",
+        ],
+        ["in ", "was ", "for ", "as ", "is ", "on ", "to ", "by ", "and ", "of "],
+        [
+            "1972 ",
+            "1973 ",
+            "1971 ",
+            "1974 ",
+            "1977 ",
+            "1976 ",
+            "1979 ",
+            "1972 ",
+            "1992 ",
+            "1967 ",
+        ],
+        ["as ", "As ", "and ", "to ", "for ", "was ", "is ", "as ", "in ", "at "],
+        ["the ", "a ", "it ", "first ", "one ", "its ", "of ", "an ", "this ", "to "],
+        [
+            "world",
+            "first ",
+            "World ",
+            "country ",
+            "worldwide ",
+            "world ",
+            "life ",
+            "international ",
+            "nation ",
+            "global ",
+        ],
+        ["'", "’", "`", "first ", "s ", "of ", "́", "'", "for ", "is "],
+        ["s ", "e s", "d", "t", "e", "'", "m", "st", "ing", "i"],
+        [
+            "first ",
+            "First ",
+            "last ",
+            "next ",
+            "second ",
+            "initial ",
+            "only ",
+            "one ",
+            "early ",
+            "most ",
+        ],
+        [
+            "legisla",
+            "law",
+            "laws",
+            "Legisla",
+            "legislativ",
+            "regula",
+            "legal ",
+            "regulations ",
+            "statu",
+            "statut",
+        ],
+        [
+            "ted ",
+            "tion ",
+            "ting ",
+            "te ",
+            "ed ",
+            "tes ",
+            "d ",
+            "tions ",
+            "[en_XX] ",
+            "tive ",
+        ],
+        [
+            "effort ",
+            "efforts ",
+            "on ",
+            "[en_XX] ",
+            "environment ",
+            "nature ",
+            "area ",
+            "over ",
+            "about ",
+            "work ",
+        ],
+        ["to ", "for ", "on ", "of ", "in ", "at ", "and ", "by ", ". ", "with "],
+        [
+            "conserve ",
+            "save ",
+            "conserva ",
+            "protect ",
+            "maintain ",
+            "[en_XX] ",
+            "resto",
+            "reta",
+            "keep ",
+            "regula",
+        ],
+        [
+            "nature ",
+            "Nature ",
+            "natural ",
+            "life ",
+            "[en_XX] ",
+            "environment ",
+            "Natur",
+            "history ",
+            "natur",
+            "character ",
+        ],
+        [
+            "conserva",
+            "Conserva",
+            "conserve",
+            "[en_XX] ",
+            "nature ",
+            "right ",
+            "reserve ",
+            "preserva",
+            "protection ",
+            "habitat ",
+        ],
+        [
+            "tion",
+            "tions ",
+            "ation",
+            "ment",
+            "ion",
+            "tive",
+            "ted",
+            "ting",
+            "nce",
+            "sion",
+        ],
+        [".", ",", "", ";", "and", "of", "s", "to", ":", "is"],
+        ["", ".", ",", "", "s", "e", "and", "?", "...", "to"],
+    ]
+    return {"result": resultset[0][1], "word_alternatives": word_alternatives}
+    # return resultset[0][1]
 
 
 if __name__ == "__main__":
     # test for function output
-    genAltReturn = generate_alternatives(
-        "The church currently maintains a program of ministry, outreach, and cultural events."
-    )
-    print("generate_alternatives()")
-    print(genAltReturn)
+    # genAltReturn = generate_alternatives(
+    #     "The church currently maintains a program of ministry, outreach, and cultural events."
+    # )
+    # print("generate_alternatives()")
+    # print(genAltReturn)
 
-    genincrReturn = marian.incremental_alternatives(
-        "The church currently maintains a program of ministry, outreach, and cultural events.",
-        "",
-        False,
-    )
-    print("incremental_alternatives()")
-    print(genincrReturn)
+    # genincrReturn = marian.incremental_alternatives(
+    #     "The church currently maintains a program of ministry, outreach, and cultural events.",
+    #     "",
+    #     False,
+    # )
+    # print("incremental_alternatives()")
+    # print(genincrReturn)
 
-    completionReturn = completion(
-        "The church currently maintains a program of ministry, outreach, and cultural events.",
-        "The church presently",
+    # completionReturn = completion(
+    #     "The church currently maintains a program of ministry, outreach, and cultural events.",
+    #     "The church presently",
+    # )
+    # print("completion()")
+    # print(completionReturn)
+    print(
+        generate_constraints(
+            "Yellowstone National Park was established by the US government in 1972 as the world's first legislated effort at nature conservation.",
+            [
+                "the US government",
+                "Yellowstone National Park",
+                "the world's first legislated effort",
+                "nature conservation",
+            ],
+        )
     )
-    print("completion()")
-    print(completionReturn)
