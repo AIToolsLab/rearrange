@@ -2,20 +2,16 @@
 # Alternative Wordings
 
 ***
-## About Us
+## About
 
 **Noah Madrid:**
 Noah Madrid is a current student at Calvin University from Manitowoc, Wisconsin majoring in Computer Science and Japanese.
 
 Contact: [Github](https://github.com/Nmad7), [LinkedIn](https://www.linkedin.com/in/noahmadrid/), [madrid4842@gmail.com](mailto:madrid4842@gmail.com)
 
-**Helen Makuei:**
-Helen Makuei is a current student at Calvin University majoring in Computer Science.
-
-Contact: [Github](https://github.com/makueihellen), [ham8@students.calvin.edu](mailto:ham8@students.calvin.edu)
 
 ***
-## Our Project
+## The Project
 **Vision:**
 While writing, variety in vocabulary and sentence structure is vital in staving off monotony and retaining reader interest. There are always multiple ways in which a sentence can communicate the same idea yet switching between various structures can be difficult even for experience writers. We are creating a tool which can generate these various sentence alternatives to allow writers to experiment with different manners of conveying their meaning.
 
