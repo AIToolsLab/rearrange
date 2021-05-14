@@ -42,16 +42,13 @@ class mbartAlt:
     def sample(self, sentence, beam, verbose, **kwargs):
         tokenized_sentence = [self.bart.encode(sentence)]
         hypos = self.bart.generate(tokenized_sentence, beam, verbose, **kwargs)[0]
-        if word_alts:
-            word_alternatives = self.word_alternatives(
-                torch.tensor(
-                    [self.bart.binarize(self.lang)[0].tolist()]
-                    + tokenized_sentence[0].tolist()
-                ),
-                hypos[0]["tokens"],
-            )
-        else:
-            word_alternatives = []
+        word_alternatives = self.word_alternatives(
+            torch.tensor(
+                [self.bart.binarize(self.lang)[0].tolist()]
+                + tokenized_sentence[0].tolist()
+            ),
+            hypos[0]["tokens"],
+        )
         return hypos, word_alternatives
 
     def round_trip(self, sentence: str, constraints: [str]):
@@ -94,12 +91,10 @@ class mbartAlt:
                     self.clean_lang_tok(self.bart.decode(returned[i]["tokens"])),
                 )
             )
-        print(resultset)
+        # print(resultset)
         # restore original translation direction
         self.bart.task.args.target_lang = orig_tgt
         self.bart.task.args.source_lang = orig_src
-
-        # return self.clean_lang_tok(returned)
         return resultset, word_alternatives
 
     def get_prefix_alts(self, sentence, prefixes: [str]):
@@ -109,6 +104,8 @@ class mbartAlt:
 
     def word_alternatives(self, away_tokens, hypos_tokens):
         alternatives = []
+        # _float_tensor.device is the way fairseq gets current device to use within their code
+        # get language model scores
         lm_scores = self.bart.models[0](
             away_tokens.unsqueeze(0).to(self.bart._float_tensor.device),
             torch.tensor([len(away_tokens)]).to(self.bart._float_tensor.device),
@@ -116,29 +113,27 @@ class mbartAlt:
         )[0][0]
         # do not compute sim score for language code
         sim_scores = self.similar_words(hypos_tokens[1:])
+        # combine sim and lm scores
         for idx, word_scores in enumerate(lm_scores):
             alternatives.append(
                 [
-                    self.bart.decode([token])
-                    for token in torch.tensor(
-                        list(
-                            map(
-                                lambda x, y: 0.06 * x + 0.94 * y,
-                                word_scores,
-                                sim_scores[idx],
-                            )
-                        )
-                    ).topk(10)[1]
+                    word.replace("\u2581", " ")
+                    for word in self.bart.string(
+                        (word_scores * 0.2 + torch.tensor(sim_scores[idx]) * 0.8)
+                        .topk(10)
+                        .indices
+                    ).split(" ")
                 ]
             )
         return alternatives
 
     def similar_words(self, word_tokens):
         sim_scores = []
+        # get bart embedding
         emb = self.bart.models[0].decoder.output_projection.weight
         for token in word_tokens:
             # get similar words
-            word_emb = self.bart.models[0].decoder.output_projection.weight[token]
+            word_emb = emb[token]
             sim_scores.append(torch.matmul(emb, word_emb))
         return sim_scores
 
@@ -177,17 +172,12 @@ if __name__ == "__main__":
     #     )
     # )
     away = mbart.bart.translate(
-        "Yellowstone National Park was established by the US government in 1972 as the world's first legislated effort at nature conservation."
+        "Researchers found that heart attacks can be caused by stress."
     )
     away = mbart.clean_lang_tok(away)
     print(
         mbart.round_trip(
             away,
-            [
-                "US government",
-                "Yellowstone National Park",
-                "world's first legislated effort",
-                "nature conservation",
-            ],
+            ["Heart attacks", "caused", "stress", "researchers"],
         )
     )

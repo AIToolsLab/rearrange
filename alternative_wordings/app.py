@@ -61,4 +61,5 @@ def constraints():
 
 
 if __name__ == "__main__":
+    # disable reloader as it causes issues with gpu memory
     app.run(debug=True, use_reloader=False, port=5009)

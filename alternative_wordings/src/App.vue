@@ -43,7 +43,7 @@
         <span v-if="ind == selectedIdx" style="background-color: yellow"
           >{{ words[0] }}
         </span>
-        <span v-else>{{ words[0] + " " }}</span>
+        <span v-else>{{ words[0] }}</span>
         <!--Drop down selector for alternative words from prediction-->
         <div id="ind" class="tooltiptext">
           <span v-for="i in word_alts[ind]">

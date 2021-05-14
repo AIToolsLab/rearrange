@@ -9,6 +9,7 @@
 * `pip install -r requirements.txt`
 * `npm install`
 
+You will also have to have fairseq's mBART downloaded and extracted from https://dl.fbaipublicfiles.com/fairseq/models/mbart50/mbart50.ft.nn.tar.gz and put into the same location as models.py.
 ### Backend
 
 `python app.py`
