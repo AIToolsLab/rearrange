@@ -2,7 +2,7 @@
   <div id="app">
     <!--Header, input text area, and button section-->
     <div class="form-group">
-      <h2 style="color: black">Exploring alternative wordings</h2>
+      <h2 style="color: black">Exploring Alternative Wordings</h2>
       <textarea
         id="userenglish"
         name="text"
@@ -16,9 +16,9 @@
       <button
         class="continue"
         @click="
-          getAlts(inputText);
           incremental(inputText, '', false);
           showResults = true;
+          current_text = inputText;
         "
       >
         Continue
@@ -26,15 +26,27 @@
     </div>
     <!--Area where you can switch out words in the sentence with most likely alternatives-->
     <div class="focus-sentence">
-      <span class="tooltip" v-for="(word, ind) in incrementalData.tokens">
+      <draggable v-model="incrementalData.chunks" @end="checkMove">
+        <span class="tooltip" v-for="(chunk, ind) in incrementalData.chunks">
+          <span v-if="chunk[1]">
+            <span style="background-color: yellow">{{ chunk[0] }}</span>
+          </span>
+          <span v-else>
+            <span>{{ chunk[0] }}</span>
+          </span>
+        </span>
+      </draggable>
+    </div>
+    <div class="focus-sentence">
+      <span class="tooltip" v-for="(words, ind) in word_alts">
         <!--If you click on a word to replace it make the replacement yellow-->
-        <span v-if="ind == selectedIdx" style="background-color: yellow">{{
-          word
-        }}</span>
-        <span v-else>{{ word }}</span>
+        <span v-if="ind == selectedIdx" style="background-color: yellow"
+          >{{ words[0] }}
+        </span>
+        <span v-else>{{ words[0] }}</span>
         <!--Drop down selector for alternative words from prediction-->
         <div id="ind" class="tooltiptext">
-          <span v-for="i in incrementalData.predictions[ind]">
+          <span v-for="i in word_alts[ind]">
             <button
               class="plain"
               @click="
@@ -48,79 +60,12 @@
         </div>
       </span>
     </div>
-
-    <!--Alternative sentences for original sentence with parts highlighted-->
-    <div v-if="showResults" class="results">
-      <br />
-      <ul>
-        <li v-for="(set, idx) in altsData.colorCoding" class="tooltip">
-          <button v-bind:id="idx" @click="toggleShowing($event)" class="plain">
-            <span v-if="isShowing[idx]">-</span>
-            <span v-else>+</span>
-          </button>
-          <button
-            @click="incremental(altsData.alternatives[idx][0], '', false)"
-            style="font-size: 15px"
-            class="plain"
-          >
-            <span
-              v-for="chunk in set[0]"
-              v-bind:style="{ 'background-color': colors[chunk[1]] }"
-            >
-              {{ chunk[0] }}
-            </span>
-          </button>
-          <br />
-          <ul v-show="isShowing[idx]">
-            <li v-for="(alt, subidx) in restOfSet(set)">
-              <button
-                @click="
-                  incremental(altsData.alternatives[idx][subidx + 1], '', false)
-                "
-                style="font-size: 15px"
-                class="plain"
-              >
-                <span v-for="chunk in alt">
-                  {{ chunk[0] }}
-                </span>
-              </button>
-            </li>
-          </ul>
-        </li>
-      </ul>
-    </div>
-    <!--Alternative sentences displayed once a word is changed -->
-    <div v-else class="alterations">
-      <p style="font-size: 20px">{{ withChangedWord }}</p>
-      <div class="grid-container">
-        <div class="grid-item" style="text-align: right; white-space: nowrap">
-          {{ prefix }}
-        </div>
-        <div class="grid-item" style="color: #666666">
-          <div v-for="(completion, optionidx) in completions">
-            <button
-              @click="incremental(fulltext(prefix, completion), '', false)"
-              style="font-size: 20px; color: #666666"
-              class="plain"
-            >
-              <!--Bold words which are different between alternative and original-->
-              <span v-for="(word, wordidx) in completion">
-                <span
-                  v-if="isDifferent(word, optionidx, wordidx)"
-                  class="diff"
-                  >{{ word }}</span
-                >
-                <span v-else>{{ word }}</span>
-              </span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <script>
+import draggable from "vuedraggable";
+
 export default {
   data() {
     return {
@@ -139,18 +84,20 @@ export default {
         "#30915F",
       ],
       incrementalData: {
-        final: "",
-        expected: "",
-        tokens: [],
-        predictions: [],
-        score: 0,
+        chunks: [],
       },
       withChangedWord: "",
       prefix: "",
       completions: [],
       differences: [],
       selectedIdx: -1,
+      current_text: "",
+      word_alts: [],
     };
+  },
+
+  components: {
+    draggable,
   },
 
   methods: {
@@ -216,6 +163,7 @@ export default {
       const res = await fetch(url);
       const input = await res.json();
       this.incrementalData = input;
+      console.log(input);
       // reset selectedIdx in case this was called through selecting alternative word
       this.selectedIdx = -1;
     },
@@ -259,6 +207,52 @@ export default {
     fulltext(prefix, completion) {
       return prefix + completion.join("");
     },
+
+    async checkMove(evnt) {
+      console.log(evnt);
+      var constraints = [];
+      var chunk = [];
+      for (chunk of this.incrementalData.chunks) {
+        if (chunk[1]) {
+          //capatalize if first phrase of sentence
+          console.log(this.incrementalData.chunks.indexOf(chunk));
+          if (this.incrementalData.chunks.indexOf(chunk) === 1) {
+            chunk[0] = chunk[0].charAt(0).toUpperCase() + chunk[0].slice(1);
+          }
+          constraints.push(chunk[0]);
+        }
+      }
+      console.log(this.current_text);
+      console.log(constraints);
+      var url = new URL("/api/constraints", window.location);
+      var params = {
+        sentence: this.current_text,
+        constraints: constraints,
+      };
+      url.searchParams.append("q", JSON.stringify(params));
+      var res = await fetch(url);
+      var output = await res.json();
+      var input = output.result;
+      this.word_alts = output.word_alternatives;
+      console.log(this.word_alts);
+      console.log(input);
+      url = new URL("/api/incremental", window.location);
+      params = {
+        english: input,
+        prefix: "",
+        recalculation: false,
+      };
+      url.searchParams.append("q", JSON.stringify(params));
+      res = await fetch(url);
+      input = await res.json();
+      console.log(input);
+      this.incrementalData = input;
+      var current_text = "";
+      for (chunk of input.chunks) {
+        current_text = current_text.concat(chunk[0]);
+      }
+      this.current_text = current_text;
+    },
   },
 };
 </script>
@@ -289,6 +283,9 @@ ul {
   font-size: 25px;
   padding: 5%;
 }
+span {
+  white-space: pre-wrap;
+}
 .results {
   text-align: left;
   margin-left: 10%;
@@ -297,6 +294,7 @@ ul {
 .tooltip {
   position: relative;
   display: inline-block;
+  white-space: pre;
 }
 .tooltip .tooltiptext {
   visibility: hidden;

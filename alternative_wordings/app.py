@@ -21,7 +21,9 @@ def result():
 
     english = data["english"]
 
-    return jsonify(models.generate_alternatives(english))
+    result = models.generate_alternatives(english)
+    print(result)
+    return jsonify(result)
 
 
 @app.route("/api/incremental", methods=["GET"])
@@ -47,5 +49,17 @@ def completion():
     return jsonify(models.completion(sentence, prefix))
 
 
+@app.route("/api/constraints", methods=["GET"])
+def constraints():
+    content = request.args.get("q")
+    data = json.loads(content)
+
+    sentence = data["sentence"]
+    constraints = data["constraints"]
+
+    return jsonify(models.generate_constraints(sentence, constraints))
+
+
 if __name__ == "__main__":
-    app.run(port=5009)
+    # disable reloader as it causes issues with gpu memory
+    app.run(debug=True, use_reloader=False, port=5009)
