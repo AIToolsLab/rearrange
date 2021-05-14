@@ -30,3 +30,5 @@ We wish to expand the current existing tool created by April Volzer during her s
 [Calvin University Department of Computer Science website](https://computing.calvin.edu)
 
 [Video Presentation](https://youtu.be/2Q8rhJJvIPg)
+
+[Senior Project Report](https://github.com/CalvinData/seniorproj2020/blob/gh-pages/SeniorProjectReport.pdf)
