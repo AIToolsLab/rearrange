@@ -1,3 +1,4 @@
+# Using python 3.11 will cause a ValueError on fairseq class.
 FROM python:3.10
 
 # Set up the working directory.
@@ -9,12 +10,9 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
      && apt-get -y install --no-install-recommends npm
 RUN npm install
 
-# Update pip
-RUN pip install --upgrade pip
 # Install packages
+RUN pip install -U pip setuptools wheel spacy
 RUN pip install torch torchvision torchaudio tensorboardX
-RUN pip install -U pip setuptools wheel
-RUN pip install -U spacy
 RUN python -m spacy download en_core_web_sm
 
 # Copy the requirement.txt into the WORKDIR and run pip to install all necessary packages.
