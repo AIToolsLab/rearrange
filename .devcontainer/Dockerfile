@@ -12,7 +12,7 @@ RUN npm install
 # Update pip
 RUN pip install --upgrade pip
 # Install packages
-RUN pip install torch torchvision torchaudio
+RUN pip install torch torchvision torchaudio tensorboardX
 RUN pip install -U pip setuptools wheel
 RUN pip install -U spacy
 RUN python -m spacy download en_core_web_sm
@@ -21,5 +21,5 @@ RUN python -m spacy download en_core_web_sm
 RUN pip install --no-cache-dir --upgrade -r /code/alternative_wordings/requirements.txt
 
 # Add the mBART50 model
-RUN wget -P /alternative_wordings/ https://dl.fbaipublicfiles.com/fairseq/models/mbart50/mbart50.ft.nn.tar.gz 
-RUN tar -C /alternative_wordings -xz /alternative_wordings/mbart50.ft.nn.tar.gz
+# RUN wget -P /alternative_wordings/ https://dl.fbaipublicfiles.com/fairseq/models/mbart50/mbart50.ft.nn.tar.gz 
+# RUN tar -C /alternative_wordings -xz /alternative_wordings/mbart50.ft.nn.tar.gz
