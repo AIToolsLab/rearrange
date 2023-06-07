@@ -4,8 +4,5 @@
 	"build": {
 		"context": "..",
 		"dockerfile": "Dockerfile"
-	},
-	// "features": {
-	// 	"ghcr.io/devcontainers/features/anaconda:1": {"version": "latest"}			// Install Anaconda
-	// }
+	}
 }
